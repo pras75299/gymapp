@@ -142,7 +142,9 @@ export default function PaymentScreen() {
           await gymApi.confirmPayment(
             purchasedPassId,
             response.data.razorpay_payment_id,
-            deviceId
+            deviceId,
+            params.amount,
+            params.currency
           );
           console.log("[Payment] Payment verified successfully");
 

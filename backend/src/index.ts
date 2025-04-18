@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import Razorpay from 'razorpay';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +28,7 @@ app.use(express.json());
 const getGymHandler: RequestHandler<{ qrIdentifier: string }> = async (req, res, next) => {
   try {
     const { qrIdentifier } = req.params;
-    
+
     const gym = await prisma.gym.findUnique({
       where: { qrIdentifier },
       include: { passes: true }
@@ -73,8 +74,10 @@ const purchasePassHandler: RequestHandler = async (req, res) => {
         expiryDate: new Date(Date.now() + passType.duration * 24 * 60 * 60 * 1000),
         paymentStatus: 'pending',
         qrCodeValue: randomUUID(),
-        isActive: false
-      }
+        isActive: false,
+        amount: passType.price ? new Prisma.Decimal(passType.price.toString()) : null,
+        currency: passType.currency
+      } as unknown as Prisma.PurchasedPassCreateInput
     });
 
     // Create Razorpay order
@@ -128,7 +131,7 @@ const razorpayWebhookHandler: RequestHandler = async (req, res) => {
     if (event === 'payment.captured') {
       const { payment } = payload;
       const orderId = payment.entity.order_id;
-      
+
       // Update the purchased pass
       await prisma.purchasedPass.update({
         where: { paymentIntentId: orderId },
@@ -172,55 +175,55 @@ const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res
 
 // Payment confirmation handler
 const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> => {
-    const { passId, paymentId } = req.body;
+  const { passId, paymentId } = req.body;
 
-    if (!passId || !paymentId) {
-        res.status(400).json({
-            error: 'Missing required fields: passId and paymentId'
-        });
-        return;
+  if (!passId || !paymentId) {
+    res.status(400).json({
+      error: 'Missing required fields: passId and paymentId'
+    });
+    return;
+  }
+
+  try {
+    // Find the purchased pass
+    const purchasedPass = await prisma.purchasedPass.findUnique({
+      where: { id: passId },
+      include: { passType: true }
+    });
+
+    if (!purchasedPass) {
+      res.status(404).json({
+        error: 'Pass not found'
+      });
+      return;
     }
 
-    try {
-        // Find the purchased pass
-        const purchasedPass = await prisma.purchasedPass.findUnique({
-            where: { id: passId },
-            include: { passType: true }
-        });
+    // Generate a unique QR code value if not already set
+    const qrCodeValue = purchasedPass.qrCodeValue || randomUUID();
 
-        if (!purchasedPass) {
-            res.status(404).json({
-                error: 'Pass not found'
-            });
-            return;
-        }
+    // Calculate expiry date based on pass duration
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + purchasedPass.passType.duration);
 
-        // Generate a unique QR code value if not already set
-        const qrCodeValue = purchasedPass.qrCodeValue || randomUUID();
-        
-        // Calculate expiry date based on pass duration
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + purchasedPass.passType.duration);
+    // Update the pass with payment details
+    await prisma.purchasedPass.update({
+      where: { id: passId },
+      data: {
+        paymentStatus: 'succeeded',
+        paymentIntentId: paymentId,
+        qrCodeValue,
+        expiryDate,
+        isActive: true
+      }
+    });
 
-        // Update the pass with payment details
-        await prisma.purchasedPass.update({
-            where: { id: passId },
-            data: {
-                paymentStatus: 'succeeded',
-                paymentIntentId: paymentId,
-                qrCodeValue,
-                expiryDate,
-                isActive: true
-            }
-        });
-
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error confirming payment:', error);
-        res.status(500).json({
-            error: 'Failed to confirm payment'
-        });
-    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error confirming payment:', error);
+    res.status(500).json({
+      error: 'Failed to confirm payment'
+    });
+  }
 };
 
 // Get active passes endpoint
@@ -259,7 +262,7 @@ app.post('/api/passes/purchase', purchasePassHandler);
 app.post('/api/payments/confirm', confirmPaymentHandler);
 app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
 app.get('/api/passes/:passId/status', getPassStatusHandler);
-app.get('/api/passes/active', getActivePassesHandler); 
+app.get('/api/passes/active', getActivePassesHandler);
 
 // Start server
 app.listen(port, '0.0.0.0', () => {

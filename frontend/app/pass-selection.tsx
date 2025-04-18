@@ -36,7 +36,7 @@ export default function PassSelection() {
     // Set up polling for active passes
     const pollInterval = setInterval(() => {
       checkActivePass();
-    }, 5000); // Check every 5 seconds
+    }, 60000); // Check every 5 seconds
 
     return () => {
       clearInterval(pollInterval);

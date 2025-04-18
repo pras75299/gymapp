@@ -47,6 +47,8 @@ model PurchasedPass {
   paymentStatus   String   @default("pending")
   qrCodeValue     String   @unique
   isActive        Boolean  @default(true)
+  amount          Decimal? @db.Decimal(10, 2) // Amount paid for the pass
+  currency        String   @default("INR")    // Currency of the payment
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

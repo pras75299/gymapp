@@ -115,14 +115,16 @@ export const gymApi = {
         }
     },
 
-    confirmPayment: async (passId: string, paymentId: string, deviceId: string): Promise<void> => {
+    confirmPayment: async (passId: string, paymentId: string, deviceId: string, amount: string, currency: string): Promise<void> => {
         if (!API_URL) throw new Error('API URL not configured');
         console.log(`[gymApi] Confirming payment for pass: ${passId} with payment ID: ${paymentId}`);
         try {
             const response = await axios.post(`${API_URL}/payments/confirm`, {
                 passId,
                 paymentId,
-                deviceId
+                deviceId,
+                amount,
+                currency
             });
             console.log('[gymApi] Payment confirmation response:', response.data);
 
