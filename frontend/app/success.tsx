@@ -20,7 +20,7 @@ export default function SuccessScreen() {
   useEffect(() => {
     let pollingInterval: NodeJS.Timeout;
     let attempts = 0;
-    const maxAttempts = 10; // 10 attempts * 2 seconds = 20 seconds max waiting time
+    const maxAttempts = 10;
 
     const fetchPassStatus = async () => {
       try {
@@ -42,10 +42,7 @@ export default function SuccessScreen() {
       }
     };
 
-    // Initial fetch
     fetchPassStatus();
-
-    // Start polling every 2 seconds
     pollingInterval = setInterval(fetchPassStatus, 2000);
 
     return () => {
@@ -103,6 +100,14 @@ export default function SuccessScreen() {
           color="#000"
         />
       </View>
+      <View style={styles.detailsContainer}>
+        <Text style={styles.detailText}>
+          Pass Type: {passStatus.passType?.name || 'Loading...'}
+        </Text>
+        <Text style={styles.detailText}>
+          Expiry Date: {passStatus.expiryDate ? new Date(passStatus.expiryDate).toLocaleDateString() : 'Loading...'}
+        </Text>
+      </View>
       <Text style={styles.instructions}>
         Show this QR code at the gym entrance to gain access
       </Text>
@@ -140,6 +145,25 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     marginBottom: 20,
+  },
+  detailsContainer: {
+    padding: 20,
+    backgroundColor: "white",
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  detailText: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 10,
   },
   instructions: {
     fontSize: 16,

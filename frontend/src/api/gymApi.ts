@@ -43,6 +43,10 @@ export interface RazorpayOrder {
 export interface PassStatus {
     status: 'pending' | 'succeeded' | 'failed';
     qrCodeValue?: string;
+    passType?: {
+        name: string;
+    };
+    expiryDate?: string;
 }
 
 export interface PurchaseResult {
@@ -160,6 +164,17 @@ export const gymApi = {
         } catch (error) {
             console.error('[gymApi] Error fetching active passes:', error);
             throw new ApiError("Failed to fetch active passes");
+        }
+    },
+
+    validateQrCode: async (qrCodeValue: string) => {
+        if (!API_URL) throw new Error('API URL not configured');
+        try {
+            const response = await axios.post(`${API_URL}/validate-qr`, { qrCodeValue });
+            return response.data;
+        } catch (error) {
+            console.error('[gymApi] Error validating QR code:', error);
+            throw new ApiError("Failed to validate QR code");
         }
     }
 };

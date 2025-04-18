@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -13,132 +12,87 @@ import { gymApi } from "../src/api/gymApi";
 import type { PassType } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function PassSelection() {
-  const params = useLocalSearchParams<{ gymId: string }>();
+export default function PassSelectionScreen() {
+  const { qrIdentifier } = useLocalSearchParams<{ qrIdentifier: string }>();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [passes, setPasses] = useState<PassType[]>([]);
-  const [gymName, setGymName] = useState<string>("");
   const [hasActivePass, setHasActivePass] = useState(false);
 
   useEffect(() => {
-    if (!params.gymId) {
-      Alert.alert("Error", "No gym ID provided. Please scan a valid QR code.", [
-        { text: "OK", onPress: () => router.replace("/") },
-      ]);
-      return;
-    }
+    const fetchPasses = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    // Initial fetch
-    fetchPasses();
-    checkActivePass();
+        // Fetch gym details using QR identifier
+        const gym = await gymApi.getGymByQrIdentifier(qrIdentifier);
+        setPasses(gym.passes);
 
-    // Set up polling for active passes
-    const pollInterval = setInterval(() => {
-      checkActivePass();
-    }, 60000); // Check every 5 seconds
-
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [params.gymId]);
-
-  const checkActivePass = async () => {
-    try {
-      const deviceId = await AsyncStorage.getItem("deviceId");
-      if (!deviceId) {
-        console.log("[PassSelection] No device ID found");
-        return;
-      }
-
-      console.log("[PassSelection] Checking for active passes with device ID:", deviceId);
-      const activePasses = await gymApi.getActivePasses(deviceId);
-      console.log("[PassSelection] Found active passes:", activePasses);
-      
-      // If no active passes are found in the database but we have data in AsyncStorage
-      if (activePasses.length === 0) {
-        const storedPasses = await AsyncStorage.getItem("activePasses");
-        if (storedPasses) {
-          console.log("[PassSelection] Found stale pass data in AsyncStorage, clearing...");
-          await AsyncStorage.multiRemove([
-            "lastPurchasedPassId",
-            "paymentAmount",
-            "paymentCurrency",
-            "activePasses"
-          ]);
+        // Check for active passes
+        const deviceId = await AsyncStorage.getItem("deviceId");
+        if (deviceId) {
+          const activePasses = await gymApi.getActivePasses(deviceId);
+          setHasActivePass(activePasses.length > 0);
         }
-      } else {
-        // Store the active pass info for quick access
-        await AsyncStorage.setItem("activePasses", JSON.stringify(activePasses));
-        console.log("[PassSelection] Stored active passes in AsyncStorage");
+      } catch (err) {
+        console.error("Error fetching passes:", err);
+        setError("Failed to fetch passes");
+      } finally {
+        setLoading(false);
       }
-      
-      setHasActivePass(activePasses.length > 0);
-      console.log("[PassSelection] hasActivePass set to:", activePasses.length > 0);
-    } catch (error) {
-      console.error("[PassSelection] Error checking active passes:", error);
-      // Don't set hasActivePass to true if there's an error
-      setHasActivePass(false);
-    }
-  };
+    };
 
-  const fetchPasses = async () => {
+    fetchPasses();
+  }, [qrIdentifier]);
+
+  const handlePassSelect = async (passId: string) => {
     try {
-      const response = await gymApi.getGymByQrIdentifier(params.gymId);
-      setGymName(response.name);
-      setPasses(response.passes);
-    } catch (error) {
-      console.error("Error fetching passes:", error);
-      Alert.alert("Error", "Could not load gym passes. Please try again.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePassSelection = async (pass: PassType) => {
-    if (hasActivePass) {
-      Alert.alert(
-        "Active Pass Found",
-        "You already have an active pass. Please wait until your current pass expires before purchasing a new one.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    try {
-      console.log("[PassSelection] Initiating purchase for pass type:", pass.id);
-      const result = await gymApi.purchasePass(pass.id);
-      console.log("[PassSelection] Purchase initiated, got purchased pass ID:", result.passId);
-      
+      const order = await gymApi.purchasePass(passId);
       router.push({
         pathname: "/payment",
         params: {
-          passId: result.passId,
-          amount: result.amount.toString(),
-          currency: result.currency,
-          orderId: result.orderId,
-          keyId: result.keyId,
+          passId: order.passId,
+          orderId: order.orderId,
+          amount: order.amount,
+          currency: order.currency,
+          keyId: order.keyId,
         },
       });
-    } catch (error) {
-      console.error("[PassSelection] Error initiating purchase:", error);
-      Alert.alert("Error", "Could not initiate purchase. Please try again.");
+    } catch (err) {
+      console.error("Error purchasing pass:", err);
+      setError("Failed to purchase pass");
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.container}>
         <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading passes...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.buttonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.gymName}>{gymName}</Text>
+      <Text style={styles.title}>Veer's Gym Passes</Text>
+      
       {hasActivePass && (
         <View style={styles.activePassBanner}>
           <Text style={styles.activePassText}>
@@ -146,26 +100,21 @@ export default function PassSelection() {
           </Text>
         </View>
       )}
+
       {passes.map((pass) => (
         <TouchableOpacity
           key={pass.id}
-          style={[
-            styles.passCard,
-            hasActivePass && styles.disabledPassCard,
-          ]}
-          onPress={() => handlePassSelection(pass)}
+          style={[styles.passCard, hasActivePass && styles.disabledPass]}
+          onPress={() => handlePassSelect(pass.id)}
           disabled={hasActivePass}
         >
           <Text style={styles.passName}>{pass.name}</Text>
-          <Text style={styles.passDuration}>{pass.duration} days</Text>
           <Text style={styles.passPrice}>
-            {pass.currency} {pass.price}
+            {pass.price} {pass.currency}
           </Text>
-          {hasActivePass && (
-            <Text style={styles.disabledText}>
-              Available after current pass expires
-            </Text>
-          )}
+          <Text style={styles.passDuration}>
+            Valid for {pass.duration} {pass.duration === 1 ? "day" : "days"}
+          </Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -175,66 +124,79 @@ export default function PassSelection() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
-    padding: 16,
+    padding: 20,
+    backgroundColor: "#fff",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-  },
-  gymName: {
+  title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
+    color: "#007AFF",
     textAlign: "center",
   },
-  passCard: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
   },
-  disabledPassCard: {
-    opacity: 0.6,
-    backgroundColor: "#f0f0f0",
+  errorText: {
+    fontSize: 18,
+    color: "#FF3B30",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  passCard: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   passName: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 8,
-  },
-  passDuration: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 8,
+    marginBottom: 5,
   },
   passPrice: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 16,
     color: "#007AFF",
+    marginBottom: 5,
   },
-  disabledText: {
-    marginTop: 8,
+  passDuration: {
     fontSize: 14,
     color: "#666",
-    fontStyle: "italic",
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 15,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   activePassBanner: {
     backgroundColor: "#4CAF50",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 20,
   },
   activePassText: {
-    color: "white",
+    color: "#fff",
     textAlign: "center",
     fontWeight: "bold",
+  },
+  disabledPass: {
+    opacity: 0.6,
+    pointerEvents: "none",
   },
 });
