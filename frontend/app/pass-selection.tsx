@@ -28,16 +28,32 @@ export default function PassSelection() {
       ]);
       return;
     }
+
+    // Initial fetch
     fetchPasses();
     checkActivePass();
+
+    // Set up polling for active passes
+    const pollInterval = setInterval(() => {
+      checkActivePass();
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      clearInterval(pollInterval);
+    };
   }, [params.gymId]);
 
   const checkActivePass = async () => {
     try {
       const deviceId = await AsyncStorage.getItem("deviceId");
-      if (!deviceId) return;
+      if (!deviceId) {
+        console.log("[PassSelection] No device ID found");
+        return;
+      }
 
+      console.log("[PassSelection] Checking for active passes with device ID:", deviceId);
       const activePasses = await gymApi.getActivePasses(deviceId);
+      console.log("[PassSelection] Found active passes:", activePasses);
       
       // If no active passes are found in the database but we have data in AsyncStorage
       if (activePasses.length === 0) {
@@ -51,11 +67,18 @@ export default function PassSelection() {
             "activePasses"
           ]);
         }
+      } else {
+        // Store the active pass info for quick access
+        await AsyncStorage.setItem("activePasses", JSON.stringify(activePasses));
+        console.log("[PassSelection] Stored active passes in AsyncStorage");
       }
       
       setHasActivePass(activePasses.length > 0);
+      console.log("[PassSelection] hasActivePass set to:", activePasses.length > 0);
     } catch (error) {
-      console.error("Error checking active passes:", error);
+      console.error("[PassSelection] Error checking active passes:", error);
+      // Don't set hasActivePass to true if there's an error
+      setHasActivePass(false);
     }
   };
 
