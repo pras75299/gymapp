@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Gym {
+  id           String     @id @default(cuid())
+  name         String
+  location     String?
+  qrIdentifier String     @unique // Unique string embedded in the Gym's QR code
+  passes       PassType[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model PassType {
+  id              String          @id @default(cuid())
+  gymId           String
+  gym             Gym             @relation(fields: [gymId], references: [id])
+  name            String // e.g., "1 Day Pass", "1 Month Pass"
+  duration        Int // Duration in days (e.g., 1, 7, 30, 90, 180, 365)
+  price           Decimal         @db.Decimal(10, 2) // Price
+  currency        String          @default("INR")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  purchasedPasses PurchasedPass[]
+}
+
+model PurchasedPass {
+  id              String   @id @default(cuid())
+  passTypeId      String
+  passType        PassType @relation(fields: [passTypeId], references: [id])
+  deviceId        String? // Add device/session identifier
+  purchaseDate    DateTime @default(now())
+  expiryDate      DateTime
+  paymentIntentId String?  @unique
+  paymentStatus   String   @default("pending")
+  qrCodeValue     String   @unique
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
