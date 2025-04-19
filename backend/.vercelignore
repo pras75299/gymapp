@@ -1,0 +1,12 @@
+.git
+node_modules
+.env
+.env.*
+*.log
+*.test.ts
+*.test.js
+README.md
+.gitignore
+.editorconfig
+tsconfig.json
+prisma/migrations 
