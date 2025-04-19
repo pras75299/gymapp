@@ -376,4 +376,8 @@ app.get('/api/validate-pass', rateLimitMiddleware, validateQrCodeHandler);
 // Start server
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
-}); 
+});
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Hello, world!' });
+});
