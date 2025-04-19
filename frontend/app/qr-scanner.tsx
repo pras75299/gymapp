@@ -24,7 +24,16 @@ export default function QRScannerScreen() {
     })();
   }, [permission]);
 
+  // Reset scanner state when component mounts
+  useEffect(() => {
+    setScanned(false);
+    setError(null);
+    setResult(null);
+  }, []);
+
   const handleBarCodeScanned = async (result: BarcodeScanningResult) => {
+    if (scanned) return;
+    
     setScanned(true);
     setLoading(true);
     setError(null);
@@ -35,7 +44,7 @@ export default function QRScannerScreen() {
       if (!result.data.includes('base64')) {
         // It's a gym QR code, fetch gym details
         const gym = await gymApi.getGymByQrIdentifier(result.data);
-        router.push({
+        router.replace({
           pathname: "/pass-selection",
           params: { qrIdentifier: result.data }
         });
