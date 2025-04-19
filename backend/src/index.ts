@@ -71,20 +71,21 @@ const purchasePassHandler: RequestHandler = async (req, res) => {
     // Calculate expiry date
     const expiryDate = new Date(Date.now() + passType.duration * 24 * 60 * 60 * 1000);
 
-    // Generate QR data
-    const qrData = generateQRData(passId, passType.name, expiryDate.toISOString());
-    const qrCodeValue = encodeQRData(qrData);
+    // Generate QR code value with backend URL
+    const qrCodeValue = `${process.env.API_BASE_URL || 'https://your-api.com'}/api/validate?pass_id=${passId}`;
+    console.log('Generated QR code URL for new pass:', qrCodeValue);
 
     // Create a pending purchased pass
     const purchasedPass = await prisma.purchasedPass.create({
       data: {
         passTypeId: passId,
+        purchaseDate: new Date(),
         expiryDate,
         paymentStatus: 'pending',
-        qrCodeValue,
         isActive: false,
         amount: passType.price ? new Prisma.Decimal(passType.price.toString()) : null,
-        currency: passType.currency
+        currency: passType.currency,
+        qrCodeValue
       } as unknown as Prisma.PurchasedPassCreateInput
     });
 
@@ -206,13 +207,9 @@ const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> =>
       return;
     }
 
-    // Generate new QR data with updated expiry
-    const qrData = generateQRData(
-      purchasedPass.id,
-      purchasedPass.passType.name,
-      purchasedPass.expiryDate.toISOString()
-    );
-    const qrCodeValue = encodeQRData(qrData);
+    // Generate new QR code value with backend URL
+    const qrCodeValue = `${process.env.API_BASE_URL || 'https://your-api.com'}/api/validate?pass_id=${purchasedPass.id}`;
+    console.log('Generated QR code URL for confirmed pass:', qrCodeValue);
 
     // Update the pass with payment details
     await prisma.purchasedPass.update({
@@ -220,8 +217,8 @@ const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> =>
       data: {
         paymentStatus: 'succeeded',
         paymentIntentId: paymentId,
-        qrCodeValue,
-        isActive: true
+        isActive: true,
+        qrCodeValue
       }
     });
 
@@ -268,60 +265,104 @@ const getActivePassesHandler: RequestHandler = async (req, res) => {
 // QR code validation endpoint
 const validateQrCodeHandler: RequestHandler = async (req, res) => {
   try {
-    const { qrCodeValue } = req.body;
+    const { pass_id } = req.query;
+    console.log('Validating pass:', pass_id);
 
-    if (!qrCodeValue) {
-      res.status(400).json({ error: 'QR code value is required' });
-      return;
-    }
-
-    // Decode and verify QR data
-    const qrData = decodeQRData(qrCodeValue);
-    if (!qrData) {
-      res.status(400).json({ error: 'Invalid QR code format' });
+    if (!pass_id || typeof pass_id !== 'string') {
+      console.log('Invalid pass ID format:', pass_id);
+      res.status(400).json({
+        valid: false,
+        error: 'Invalid pass ID format',
+        details: null
+      });
       return;
     }
 
     // Find the purchased pass
     const purchasedPass = await prisma.purchasedPass.findUnique({
-      where: { id: qrData.passId },
+      where: { id: pass_id },
       include: {
         passType: true
       }
     });
 
     if (!purchasedPass) {
-      res.status(404).json({ error: 'Invalid QR code' });
-      return;
-    }
-
-    // Verify pass details match
-    if (purchasedPass.passType.name !== qrData.passType ||
-      purchasedPass.expiryDate.toISOString() !== qrData.expiryDate) {
-      res.status(400).json({ error: 'QR code data mismatch' });
+      console.log('Pass not found:', pass_id);
+      res.status(404).json({
+        valid: false,
+        error: 'Pass not found',
+        details: null
+      });
       return;
     }
 
     // Check if pass is active and not expired
+    const now = new Date();
+    const expiryDate = new Date(purchasedPass.expiryDate);
     const isValid = purchasedPass.isActive &&
       purchasedPass.paymentStatus === 'succeeded' &&
-      new Date(purchasedPass.expiryDate) > new Date();
+      expiryDate > now;
+
+    // Calculate remaining time
+    const remainingHours = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60)));
+    const remainingMinutes = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60)));
+
+    console.log('Pass validation result:', {
+      passId: pass_id,
+      isValid,
+      remainingHours,
+      status: purchasedPass.paymentStatus
+    });
 
     res.json({
       valid: isValid,
-      passDetails: {
+      error: isValid ? null : 'Pass is invalid or expired',
+      details: isValid ? {
         passType: purchasedPass.passType.name,
         purchaseDate: purchasedPass.purchaseDate,
         expiryDate: purchasedPass.expiryDate,
+        remainingHours,
+        remainingMinutes,
         amount: (purchasedPass as any).amount,
         currency: (purchasedPass as any).currency,
         status: purchasedPass.paymentStatus
-      }
+      } : null
     });
   } catch (error) {
     console.error('Error validating QR code:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({
+      valid: false,
+      error: 'Internal server error',
+      details: null
+    });
   }
+};
+
+// Add rate limiting middleware
+const rateLimit = new Map<string, { count: number; resetTime: number }>();
+
+const rateLimitMiddleware: RequestHandler = (req, res, next) => {
+  const ip = req.ip || 'unknown';
+  const now = Date.now();
+  const limit = 10; // 10 requests
+  const windowMs = 60000; // 1 minute
+
+  if (!rateLimit.has(ip)) {
+    rateLimit.set(ip, { count: 1, resetTime: now + windowMs });
+  } else {
+    const data = rateLimit.get(ip)!;
+    if (now > data.resetTime) {
+      data.count = 1;
+      data.resetTime = now + windowMs;
+    } else if (data.count >= limit) {
+      res.status(429).json({ error: 'Too many requests' });
+      return;
+    } else {
+      data.count++;
+    }
+  }
+
+  next();
 };
 
 app.get('/api/gym/:qrIdentifier', getGymHandler);
@@ -330,7 +371,7 @@ app.post('/api/payments/confirm', confirmPaymentHandler);
 app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
 app.get('/api/passes/:passId/status', getPassStatusHandler);
 app.get('/api/passes/active', getActivePassesHandler);
-app.post('/api/validate-qr', validateQrCodeHandler);
+app.get('/api/validate-pass', rateLimitMiddleware, validateQrCodeHandler);
 
 // Start server
 app.listen(port, '0.0.0.0', () => {

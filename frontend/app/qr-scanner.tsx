@@ -41,7 +41,7 @@ export default function QRScannerScreen() {
 
     try {
       // Check if it's a gym QR code (simple identifier)
-      if (!result.data.includes('base64')) {
+      if (!result.data.includes('http')) {
         // It's a gym QR code, fetch gym details
         const gym = await gymApi.getGymByQrIdentifier(result.data);
         router.replace({
@@ -51,11 +51,31 @@ export default function QRScannerScreen() {
         return;
       }
 
+      // Validate URL format
+      let url: URL;
+      try {
+        url = new URL(result.data);
+      } catch (err) {
+        throw new Error('Invalid QR code format');
+      }
+
+      // Check if URL is from our backend
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
+      if (!url.origin.includes(apiUrl)) {
+        throw new Error('Invalid QR code source');
+      }
+
       // It's a pass QR code, validate it
-      const validationResult = await gymApi.validateQrCode(result.data);
-      setResult(validationResult);
+      const response = await fetch(url.toString());
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to validate pass');
+      }
+
+      setResult(data);
     } catch (err) {
-      setError('Failed to validate QR code');
+      setError(err instanceof Error ? err.message : 'Failed to process QR code');
       console.error('Validation error:', err);
     } finally {
       setLoading(false);
