@@ -1,41 +1,41 @@
 {
   "name": "gymlogic",
   "version": "1.0.0",
-  "main": "dist/index.js",
+  "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "npx prisma db seed",
     "dev": "nodemon src/index.ts",
-    "build": "tsc && prisma generate",
-    "start": "node dist/index.js",
+    "build": "prisma generate",
+    "start": "node src/index.ts",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "vercel-build": "npm run build && npm run prisma:generate"
+    "vercel-build": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "express-validator": "^7.2.1",
-    "qrcode": "^1.5.4",
-    "razorpay": "^2.9.6",
-    "stripe": "^18.0.0"
-  },
-  "devDependencies": {
     "@prisma/client": "^6.6.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/node": "^22.14.0",
     "@types/qrcode": "^1.5.5",
-    "nodemon": "^3.1.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
     "prisma": "^6.6.0",
-    "ts-node": "^10.9.2",
+    "qrcode": "^1.5.4",
+    "razorpay": "^2.9.6",
+    "stripe": "^18.0.0",
     "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
