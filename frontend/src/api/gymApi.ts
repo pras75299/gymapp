@@ -15,6 +15,13 @@ if (!API_URL) {
 
 console.log(`[gymApi] Using Configured API_URL: ${API_URL}`);
 
+const apiClient = axios.create({
+    baseURL: 'https://gymapp-coral.vercel.app/api',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
 export interface Gym {
     id: string;
     name: string;
@@ -66,9 +73,7 @@ export const gymApi = {
         if (!API_URL) throw new Error('API URL not configured');
         console.log(`[gymApi] Fetching gym for QR: ${qrIdentifier} from ${API_URL}/gym/${qrIdentifier}`);
         try {
-            const response = await axios.get(`${API_URL}/gym/${qrIdentifier}`, {
-                timeout: 30000
-            });
+            const response = await apiClient.get(`/gym/${qrIdentifier}`);
             console.log(`[gymApi] Received response:`, response.data);
             return response.data;
         } catch (error) {
@@ -86,7 +91,7 @@ export const gymApi = {
         if (!API_URL) throw new Error('API URL not configured');
         console.log(`[gymApi] Purchasing pass: ${passId} at ${API_URL}/passes/purchase`);
         try {
-            const response = await axios.post(`${API_URL}/passes/purchase`, { passId });
+            const response = await apiClient.post('/passes/purchase', { passId });
             console.log(`[gymApi] Pass purchase initiated, status: ${response.status}`);
             return response.data;
         } catch (error) {
@@ -104,9 +109,7 @@ export const gymApi = {
         if (!API_URL) throw new Error('API URL not configured');
         console.log(`[gymApi] Fetching pass status for ID: ${passId} from ${API_URL}/passes/${passId}/status`);
         try {
-            const response = await axios.get(`${API_URL}/passes/${passId}/status`, {
-                timeout: 30000
-            });
+            const response = await apiClient.get(`/passes/${passId}/status`);
             console.log(`[gymApi] Received pass status: ${response.status}`);
             return response.data;
         } catch (error) {
@@ -119,17 +122,11 @@ export const gymApi = {
         }
     },
 
-    confirmPayment: async (passId: string, paymentId: string, deviceId: string, amount: string, currency: string): Promise<void> => {
+    confirmPayment: async (passId: string, paymentId: string): Promise<void> => {
         if (!API_URL) throw new Error('API URL not configured');
         console.log(`[gymApi] Confirming payment for pass: ${passId} with payment ID: ${paymentId}`);
         try {
-            const response = await axios.post(`${API_URL}/payments/confirm`, {
-                passId,
-                paymentId,
-                deviceId,
-                amount,
-                currency
-            });
+            const response = await apiClient.post('/payments/confirm', { passId, paymentId });
             console.log('[gymApi] Payment confirmation response:', response.data);
 
             if (response.status !== 200) {
@@ -157,7 +154,7 @@ export const gymApi = {
     getActivePasses: async (deviceId: string): Promise<PurchasedPass[]> => {
         if (!API_URL) throw new Error('API URL not configured');
         try {
-            const response = await axios.get(`${API_URL}/passes/active`, {
+            const response = await apiClient.get(`/passes/active`, {
                 params: { deviceId }
             });
             return response.data;
@@ -170,10 +167,19 @@ export const gymApi = {
     validateQrCode: async (qrCodeValue: string) => {
         if (!API_URL) throw new Error('API URL not configured');
         try {
-            const response = await axios.post(`${API_URL}/validate-qr`, { qrCodeValue });
+            console.log(`[gymApi] Validating QR code: ${qrCodeValue}`);
+            const response = await apiClient.get(`/validate`, {
+                params: { pass_id: qrCodeValue }
+            });
+            console.log('[gymApi] Validation response:', response.data);
             return response.data;
         } catch (error) {
             console.error('[gymApi] Error validating QR code:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('[gymApi] Axios error status:', error.response?.status);
+                console.error('[gymApi] Axios error message:', error.message);
+                console.error('[gymApi] Axios error response:', error.response?.data);
+            }
             throw new ApiError("Failed to validate QR code");
         }
     }

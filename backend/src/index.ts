@@ -371,7 +371,7 @@ app.post('/api/payments/confirm', confirmPaymentHandler);
 app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
 app.get('/api/passes/:passId/status', getPassStatusHandler);
 app.get('/api/passes/active', getActivePassesHandler);
-app.get('/api/validate-pass', rateLimitMiddleware, validateQrCodeHandler);
+app.get('/api/validate', rateLimitMiddleware, validateQrCodeHandler);
 
 // Start server
 app.listen(port, '0.0.0.0', () => {
