@@ -58,7 +58,7 @@ Create `.env` files in both backend and frontend directories with the following 
 Backend (.env):
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/gymlogic"
-RAZORPAY_KEY_ID="your_stripe_secret_key"
+RAZORPAY_KEY_ID="your_secret_key"
 RAZORPAY_KEY_SECRET="your_razorpay_secret"
 ```
 
