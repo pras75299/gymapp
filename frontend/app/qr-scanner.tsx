@@ -60,8 +60,7 @@ export default function QRScannerScreen() {
       }
 
       // Check if URL is from our backend
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
-      if (!url.origin.includes(apiUrl)) {
+      if (!url.origin.includes('gymapp-coral.vercel.app')) {
         throw new Error('Invalid QR code source');
       }
 

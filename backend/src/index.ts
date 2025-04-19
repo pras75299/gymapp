@@ -72,7 +72,7 @@ const purchasePassHandler: RequestHandler = async (req, res) => {
     const expiryDate = new Date(Date.now() + passType.duration * 24 * 60 * 60 * 1000);
 
     // Generate QR code value with backend URL
-    const qrCodeValue = `${process.env.API_BASE_URL || 'https://your-api.com'}/api/validate?pass_id=${passId}`;
+    const qrCodeValue = `https://gymapp-coral.vercel.app/api/validate?pass_id=${passId}`;
     console.log('Generated QR code URL for new pass:', qrCodeValue);
 
     // Create a pending purchased pass
@@ -208,7 +208,7 @@ const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> =>
     }
 
     // Generate new QR code value with backend URL
-    const qrCodeValue = `${process.env.API_BASE_URL || 'https://your-api.com'}/api/validate?pass_id=${purchasedPass.id}`;
+    const qrCodeValue = `https://gymapp-coral.vercel.app/api/validate?pass_id=${purchasedPass.id}`;
     console.log('Generated QR code URL for confirmed pass:', qrCodeValue);
 
     // Update the pass with payment details
