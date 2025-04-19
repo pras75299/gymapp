@@ -92,7 +92,7 @@ export default function PassSelectionScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Veer's Gym Passes</Text>
-      
+
       {hasActivePass && (
         <View style={styles.activePassBanner}>
           <Text style={styles.activePassText}>
@@ -126,6 +126,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: "#fff",
+    paddingTop: 60,
+
   },
   title: {
     fontSize: 24,
@@ -133,11 +135,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#007AFF",
     textAlign: "center",
+    paddingTop: 10,
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: 20,
+    fontSize: 20,
     color: "#666",
+    textAlign: "center",
   },
   errorText: {
     fontSize: 18,
@@ -178,6 +182,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 5,
     alignItems: "center",
+    color: "#007AFF",
   },
   buttonText: {
     color: "#fff",

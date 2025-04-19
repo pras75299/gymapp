@@ -216,16 +216,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginTop: 60,
   },
   passName: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
     textAlign: "center",
+    marginTop: 16,
   },
   qrContainer: {
     alignItems: "center",
-    marginVertical: 16,
+    marginVertical: 0,
     padding: 16,
     backgroundColor: "white",
     borderRadius: 8,
@@ -284,6 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    marginTop: 100,
   },
   paymentStatusText: {
     marginTop: 20,

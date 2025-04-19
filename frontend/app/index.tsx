@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from '../src/contexts/AuthContext';
 
 export default function HomePage() {
   const router = useRouter();
+  const { isSignedIn, signOut } = useAuth();
 
   const handleScanPress = () => {
     router.push("/qr-scanner");
@@ -23,14 +25,25 @@ export default function HomePage() {
       style={styles.backgroundImage}
       resizeMode="cover"
     >
+
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay}>
+        <TouchableOpacity
+          style={styles.authButton}
+          onPress={() => isSignedIn ? signOut() : router.push('/sign-in')}
+        >
+          <Text style={styles.authButtonText}>
+            {isSignedIn ? 'Sign Out' : 'Sign In'}
+          </Text>
+        </TouchableOpacity>
         <View style={styles.content}>
-          <Text style={styles.title}>Welcome to Veers Gym</Text>
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome to Veers Gym</Text>
+          </View>
           <Text style={styles.subtitle}>Scan QR code to get your gym pass</Text>
 
           <TouchableOpacity style={styles.scanButton} onPress={handleScanPress}>
-            <Ionicons name="qr-code-outline" size={32} color="white" />
+            <Ionicons name="qr-code-outline" size={24} color="white" />
             <Text style={styles.scanButtonText}>Scan QR Code</Text>
           </TouchableOpacity>
 
@@ -38,7 +51,7 @@ export default function HomePage() {
             style={[styles.scanButton, styles.myPassesButton]}
             onPress={() => router.push("/my-passes")}
           >
-            <Ionicons name="card-outline" size={32} color="white" />
+            <Ionicons name="card-outline" size={24} color="white" />
             <Text style={styles.scanButtonText}>My Passes</Text>
           </TouchableOpacity>
         </View>
@@ -58,18 +71,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: "white",
+  },
   content: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "white",
-    textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
@@ -104,5 +122,21 @@ const styles = StyleSheet.create({
   myPassesButton: {
     marginTop: 20,
     backgroundColor: "#4CAF50",
+  },
+  authButton: {
+    padding: 10,
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "flex-end",
+    backgroundColor: "#4CAF50",
+    marginLeft: "auto",
+    marginTop: 60,
+    marginRight: 10,
+    borderRadius: 10,
+  },
+  authButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'right',
   },
 });
