@@ -1,6 +1,6 @@
-# GymLogic - QR Code Based Gym Pass System
+# GymApp - QR Code Based Gym Pass System
 
-A mobile-friendly web application that enables gym members to purchase temporary passes via QR code scanning and receive an entry QR code upon successful payment.
+A mobile-friendly application that enables gym members to purchase temporary passes via QR code scanning and receive an entry QR code upon successful payment.
 
 ## 🚀 Features
 
