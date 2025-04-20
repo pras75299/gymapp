@@ -5,6 +5,7 @@ import { tokenCache } from '@clerk/clerk-expo/token-cache'
 import { AuthProvider } from '../contexts/AuthContext';
 import Constants from 'expo-constants';
 import { DeviceIdInitializer } from '../components/DeviceIdInitializer';
+import { UserProfileDropdown } from '../components/UserProfileDropdown';
 
 // const tokenCache = {
 //   async getToken(key: string) {
@@ -39,6 +40,7 @@ export default function RootLayout() {
       <AuthProvider>
         <SafeAreaProvider>
           <DeviceIdInitializer>
+            <UserProfileDropdown />
             <Stack
               screenOptions={{
                 headerShown: false,
