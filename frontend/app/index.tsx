@@ -10,13 +10,28 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from '../src/contexts/AuthContext';
+import { useClerk } from '@clerk/clerk-expo';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isSignedIn, signOut } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { signOut } = useClerk();
+
+  const handleAuth = async () => {
+    if (isSignedIn) {
+      try {
+        await signOut();
+        router.replace('/sign-in');
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+    } else {
+      router.push('/sign-in');
+    }
+  };
 
   const handleScanPress = () => {
-    router.push("/qr-scanner");
+    router.push('/qr-scanner');
   };
 
   return (
@@ -25,12 +40,11 @@ export default function HomePage() {
       style={styles.backgroundImage}
       resizeMode="cover"
     >
-
       <StatusBar barStyle="light-content" />
       <View style={styles.overlay}>
         <TouchableOpacity
           style={styles.authButton}
-          onPress={() => isSignedIn ? signOut() : router.push('/sign-in')}
+          onPress={handleAuth}
         >
           <Text style={styles.authButtonText}>
             {isSignedIn ? 'Sign Out' : 'Sign In'}
@@ -49,7 +63,7 @@ export default function HomePage() {
 
           <TouchableOpacity
             style={[styles.scanButton, styles.myPassesButton]}
-            onPress={() => router.push("/my-passes")}
+            onPress={() => router.push('/my-passes')}
           >
             <Ionicons name="card-outline" size={24} color="white" />
             <Text style={styles.scanButtonText}>My Passes</Text>
@@ -68,13 +82,14 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  content: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
     paddingTop: 10,
   },
@@ -83,28 +98,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: "white",
   },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
   subtitle: {
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.9)",
+    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 40,
-    textAlign: "center",
+    textAlign: 'center',
   },
   scanButton: {
-    backgroundColor: "#007AFF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 15,
     borderRadius: 12,
-    width: "80%",
+    width: '80%',
     maxWidth: 300,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -114,22 +123,22 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   scanButtonText: {
-    color: "white",
+    color: 'white',
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     marginLeft: 10,
   },
   myPassesButton: {
     marginTop: 20,
-    backgroundColor: "#4CAF50",
+    backgroundColor: '#4CAF50',
   },
   authButton: {
     padding: 10,
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "flex-end",
-    backgroundColor: "#4CAF50",
-    marginLeft: "auto",
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    backgroundColor: '#4CAF50',
+    marginLeft: 'auto',
     marginTop: 60,
     marginRight: 10,
     borderRadius: 10,

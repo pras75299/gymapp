@@ -1,47 +1,52 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ImageBackground, TouchableOpacity, StatusBar, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { useSignIn } from '@clerk/clerk-expo';
-import { useAuth } from '../src/contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SignInScreen() {
     const router = useRouter();
     const { isSignedIn } = useAuth();
-    const { isLoaded, signIn, setActive } = useSignIn();
-    const [emailAddress, setEmailAddress] = useState('');
+    const { signIn, setActive } = useSignIn();
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    if (isSignedIn) {
-        router.replace('/');
-    }
+    useEffect(() => {
+        if (isSignedIn) {
+            router.replace('/');
+        }
+    }, [isSignedIn]);
 
-    const onSignInPress = async () => {
-        if (!isLoaded) return;
-
-        setLoading(true);
-        setError(null);
-
+    const handleSignIn = async () => {
+        setIsLoading(true);
         try {
-            const completeSignIn = await signIn.create({
-                identifier: emailAddress,
+            const completeSignIn = await signIn?.create({
+                identifier: email,
                 password,
             });
-
-            await setActive({ session: completeSignIn.createdSessionId });
-            router.replace('/');
-        } catch (err: any) {
-            setError(err.errors?.[0]?.message || 'Failed to sign in');
+            if (completeSignIn?.createdSessionId) {
+                await setActive?.({ session: completeSignIn.createdSessionId });
+            }
+        } catch (err) {
             console.error('Sign in error:', err);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
+    if (isLoading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#fff" />
+            </View>
+        );
+    }
+
     return (
         <ImageBackground
-            source={require('../assets/images/background-gym.png')}
+            source={require('../../assets/images/background-gym.png')}
             style={styles.backgroundImage}
             resizeMode="cover"
         >
@@ -58,10 +63,10 @@ export default function SignInScreen() {
                             style={styles.input}
                             placeholder="Email"
                             placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                            value={emailAddress}
-                            onChangeText={setEmailAddress}
-                            autoCapitalize="none"
+                            value={email}
+                            onChangeText={setEmail}
                             keyboardType="email-address"
+                            autoCapitalize="none"
                         />
                         <TextInput
                             style={styles.input}
@@ -71,17 +76,11 @@ export default function SignInScreen() {
                             onChangeText={setPassword}
                             secureTextEntry
                         />
-                        {error && <Text style={styles.errorText}>{error}</Text>}
                         <TouchableOpacity
                             style={styles.signInButton}
-                            onPress={onSignInPress}
-                            disabled={loading}
+                            onPress={handleSignIn}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <Text style={styles.signInButtonText}>Sign In</Text>
-                            )}
+                            <Text style={styles.signInButtonText}>Sign In</Text>
                         </TouchableOpacity>
 
                         <View style={styles.divider}>
@@ -91,16 +90,17 @@ export default function SignInScreen() {
                         </View>
 
                         <TouchableOpacity
-                            style={styles.signUpButton}
+                            style={styles.googleButton}
                             onPress={() => router.push('/sign-in-with-oauth')}
                         >
-                            <Text style={styles.signUpButtonText}>Create an Account</Text>
+                            <Ionicons name="logo-google" size={24} color="#fff" />
+                            <Text style={styles.googleButtonText}>Continue with Google</Text>
                         </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => router.replace('/')}
+                        onPress={() => router.back()}
                     >
                         <Text style={styles.backButtonText}>Back to Home</Text>
                     </TouchableOpacity>
@@ -146,15 +146,9 @@ const styles = StyleSheet.create({
         padding: 15,
         marginBottom: 15,
         color: 'white',
-        fontSize: 16,
-    },
-    errorText: {
-        color: '#ff4444',
-        marginBottom: 15,
-        textAlign: 'center',
     },
     signInButton: {
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#4285F4',
         borderRadius: 8,
         padding: 15,
         alignItems: 'center',
@@ -163,7 +157,7 @@ const styles = StyleSheet.create({
     signInButtonText: {
         color: 'white',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '600',
     },
     divider: {
         flexDirection: 'row',
@@ -180,17 +174,19 @@ const styles = StyleSheet.create({
         marginHorizontal: 10,
         fontSize: 14,
     },
-    signUpButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    googleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4285F4',
         borderRadius: 8,
         padding: 15,
-        alignItems: 'center',
         marginBottom: 20,
     },
-    signUpButtonText: {
+    googleButtonText: {
         color: 'white',
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: 'bold',
+        marginLeft: 10,
     },
     backButton: {
         position: 'absolute',
@@ -207,4 +203,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
-});
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#000',
+    },
+}); 
