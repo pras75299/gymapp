@@ -1,12 +1,10 @@
-import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { randomUUID } from "expo-crypto";
 import { ClerkProvider } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache'
 import { AuthProvider } from '../contexts/AuthContext';
 import Constants from 'expo-constants';
+import { DeviceIdInitializer } from '../components/DeviceIdInitializer';
 
 // const tokenCache = {
 //   async getToken(key: string) {
@@ -33,23 +31,6 @@ if (!clerkPublishableKey) {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    const initializeDeviceId = async () => {
-      try {
-        let deviceId = await AsyncStorage.getItem("deviceId");
-        if (!deviceId) {
-          deviceId = randomUUID();
-          await AsyncStorage.setItem("deviceId", deviceId);
-          console.log("Generated new device ID:", deviceId);
-        }
-      } catch (error) {
-        console.error("Error initializing device ID:", error);
-      }
-    };
-
-    initializeDeviceId();
-  }, []);
-
   return (
     <ClerkProvider
       tokenCache={tokenCache}
@@ -57,55 +38,57 @@ export default function RootLayout() {
     >
       <AuthProvider>
         <SafeAreaProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen
-              name="index"
-              options={{
-                title: "Veer's Gym",
+          <DeviceIdInitializer>
+            <Stack
+              screenOptions={{
+                headerShown: false,
               }}
-            />
-            <Stack.Screen
-              name="qr-scanner"
-              options={{
-                title: "Scan Gym QR",
-              }}
-            />
-            <Stack.Screen
-              name="pass-selection"
-              options={{
-                title: "Select Pass",
-              }}
-            />
-            <Stack.Screen
-              name="payment"
-              options={{
-                title: "Payment",
-              }}
-            />
-            <Stack.Screen
-              name="success"
-              options={{
-                title: "Pass Ready",
-                headerBackVisible: false,
-              }}
-            />
-            <Stack.Screen
-              name="sign-in"
-              options={{
-                title: "Sign In",
-              }}
-            />
-            <Stack.Screen
-              name="sign-in-with-oauth"
-              options={{
-                title: "Sign In with Google",
-              }}
-            />
-          </Stack>
+            >
+              <Stack.Screen
+                name="index"
+                options={{
+                  title: "Veer's Gym",
+                }}
+              />
+              <Stack.Screen
+                name="qr-scanner"
+                options={{
+                  title: "Scan Gym QR",
+                }}
+              />
+              <Stack.Screen
+                name="pass-selection"
+                options={{
+                  title: "Select Pass",
+                }}
+              />
+              <Stack.Screen
+                name="payment"
+                options={{
+                  title: "Payment",
+                }}
+              />
+              <Stack.Screen
+                name="success"
+                options={{
+                  title: "Pass Ready",
+                  headerBackVisible: false,
+                }}
+              />
+              <Stack.Screen
+                name="sign-in"
+                options={{
+                  title: "Sign In",
+                }}
+              />
+              <Stack.Screen
+                name="sign-in-with-oauth"
+                options={{
+                  title: "Sign In with Google",
+                }}
+              />
+            </Stack>
+          </DeviceIdInitializer>
         </SafeAreaProvider>
       </AuthProvider>
     </ClerkProvider>

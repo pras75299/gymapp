@@ -4,9 +4,8 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
-useWarmUpBrowser();
-
 export default function OAuthCallback() {
+    useWarmUpBrowser();
     const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' as const });
     const router = useRouter();
     const [loading, setLoading] = useState(true);

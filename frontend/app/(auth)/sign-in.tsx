@@ -100,7 +100,7 @@ export default function SignInScreen() {
 
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => router.back()}
+                        onPress={() => router.replace('/')}
                     >
                         <Text style={styles.backButtonText}>Back to Home</Text>
                     </TouchableOpacity>
