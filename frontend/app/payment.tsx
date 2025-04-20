@@ -141,10 +141,7 @@ export default function PaymentScreen() {
           console.log("[Payment] Using pass ID:", purchasedPassId);
           await gymApi.confirmPayment(
             purchasedPassId,
-            response.data.razorpay_payment_id,
-            deviceId,
-            params.amount,
-            params.currency
+            response.data.razorpay_payment_id
           );
           console.log("[Payment] Payment verified successfully");
 
@@ -230,16 +227,16 @@ export default function PaymentScreen() {
         startInLoadingState={true}
         onNavigationStateChange={(navState) => {
           console.log("[Payment] Navigation state changed:", navState.url);
-          
+
           // Check for Razorpay callback URL with successful payment
           if (navState.url.includes('/callback/') && navState.url.includes('status=authorized')) {
             console.log("[Payment] Detected successful payment in callback URL");
-            
+
             // Extract payment ID from URL
             const paymentId = navState.url.split('payments/')[1]?.split('/')[0];
             if (paymentId) {
               console.log("[Payment] Extracted payment ID:", paymentId);
-              
+
               // Simulate the payment success response
               handlePaymentResponse({
                 nativeEvent: {
@@ -253,7 +250,7 @@ export default function PaymentScreen() {
               });
             }
           }
-          
+
           // Show manual close for bank pages
           if (navState.url.includes("axisbank") && !paymentCompleted) {
             setShowManualClose(true);
