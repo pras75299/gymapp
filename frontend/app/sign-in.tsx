@@ -83,11 +83,24 @@ export default function SignInScreen() {
                                 <Text style={styles.signInButtonText}>Sign In</Text>
                             )}
                         </TouchableOpacity>
+
+                        <View style={styles.divider}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>or</Text>
+                            <View style={styles.dividerLine} />
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.signUpButton}
+                            onPress={() => router.push('/sign-in-with-oauth')}
+                        >
+                            <Text style={styles.signUpButtonText}>Create an Account</Text>
+                        </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => router.back()}
+                        onPress={() => router.replace('/')}
                     >
                         <Text style={styles.backButtonText}>Back to Home</Text>
                     </TouchableOpacity>
@@ -151,6 +164,33 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 20,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    dividerText: {
+        color: 'rgba(255, 255, 255, 0.5)',
+        marginHorizontal: 10,
+        fontSize: 14,
+    },
+    signUpButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 8,
+        padding: 15,
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    signUpButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
     },
     backButton: {
         position: 'absolute',

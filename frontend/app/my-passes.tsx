@@ -14,6 +14,7 @@ import { gymApi } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PurchasedPass } from "../src/types";
 import { useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 
 export default function MyPassesScreen() {
   const [activePasses, setActivePasses] = useState<PurchasedPass[]>([]);
@@ -24,6 +25,7 @@ export default function MyPassesScreen() {
   const [paymentAmount, setPaymentAmount] = useState<string | null>(null);
   const [paymentCurrency, setPaymentCurrency] = useState<string | null>(null);
   const params = useLocalSearchParams();
+  const router = useRouter();
 
   const clearPassData = async () => {
     try {
@@ -164,6 +166,13 @@ export default function MyPassesScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.push("/")} style={styles.backButton}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>My Active Pass</Text>
+      </View>
+
       {activePasses.length > 0 ? (
         activePasses.map((pass) => (
           <View key={pass.id} style={styles.passCard}>
@@ -199,6 +208,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
     padding: 16,
+    paddingTop: 60,
   },
   loadingContainer: {
     flex: 1,
@@ -216,7 +226,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginTop: 60,
+    marginTop: 15,
   },
   passName: {
     fontSize: 20,
@@ -318,5 +328,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     textAlign: "center",
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    position: 'relative',
+    width: '100%',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    padding: 0,
+    paddingRight: 10,
+  },
+  backButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    textAlign: 'center',
   },
 });

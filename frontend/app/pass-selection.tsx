@@ -91,7 +91,12 @@ export default function PassSelectionScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Veer's Gym Passes</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.push("/")} style={styles.backButton}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Veer's Gym Passes</Text>
+      </View>
 
       {hasActivePass && (
         <View style={styles.activePassBanner}>
@@ -127,15 +132,31 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#fff",
     paddingTop: 60,
-
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    position: 'relative',
+    width: '100%',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    padding: 0,
+    paddingRight: 10,
+  },
+  backButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#007AFF",
-    textAlign: "center",
-    paddingTop: 10,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    textAlign: 'center',
   },
   loadingText: {
     marginTop: 20,
