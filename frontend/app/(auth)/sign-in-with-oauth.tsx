@@ -41,9 +41,11 @@ export default function SignInWithOAuthScreen() {
         handleOAuthCallback();
     }, [searchParams]);
 
-    if (isSignedIn) {
-        router.replace('/');
-    }
+    useEffect(() => {
+        if (isSignedIn) {
+            router.replace('/');
+        }
+    }, [isSignedIn]);
 
     const onPress = async () => {
         setIsLoading(true);
