@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ImageBackground, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '../../src/contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useOAuth } from '@clerk/clerk-expo';
 import { useWarmUpBrowser } from '../../src/hooks/useWarmUpBrowser';
 import { Ionicons } from '@expo/vector-icons';
