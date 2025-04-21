@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TouchableOpacity, StatusBar, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground, TouchableOpacity, StatusBar, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSignIn } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { gymApi } from '../../src/api/gymApi';
 
 export default function SignInScreen() {
     const router = useRouter();
@@ -12,12 +14,6 @@ export default function SignInScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        if (isSignedIn) {
-            router.replace('/');
-        }
-    }, [isSignedIn]);
 
     const handleSignIn = async () => {
         setIsLoading(true);
@@ -28,9 +24,53 @@ export default function SignInScreen() {
             });
             if (completeSignIn?.createdSessionId) {
                 await setActive?.({ session: completeSignIn.createdSessionId });
+
+                // Check for stored pass ID and redirect path
+                const [storedPassId, redirectPath] = await AsyncStorage.multiGet(['selectedPassId', 'redirectAfterAuth']);
+
+                if (storedPassId[1]) {
+                    try {
+                        // Clear the stored values immediately to prevent race conditions
+                        await AsyncStorage.multiRemove(['selectedPassId', 'redirectAfterAuth']);
+
+                        // Proceed with payment flow
+                        const order = await gymApi.purchasePass(storedPassId[1]);
+
+                        // Ensure we're still signed in before proceeding
+                        if (!isSignedIn) {
+                            throw new Error('Authentication lost during payment process');
+                        }
+
+                        router.replace({
+                            pathname: '/payment',
+                            params: {
+                                passId: order.passId,
+                                orderId: order.orderId,
+                                amount: order.amount,
+                                currency: order.currency,
+                                keyId: order.keyId,
+                            },
+                        });
+                    } catch (paymentError) {
+                        console.error('Payment process error:', paymentError);
+                        // Show error to user and redirect to home
+                        Alert.alert(
+                            'Payment Error',
+                            'There was an error processing your payment. Please try again.',
+                            [{ text: 'OK', onPress: () => router.replace('/') }]
+                        );
+                    }
+                } else {
+                    // No stored pass ID, redirect to home
+                    router.replace('/');
+                }
             }
         } catch (err) {
             console.error('Sign in error:', err);
+            Alert.alert(
+                'Sign In Error',
+                'Failed to sign in. Please check your credentials and try again.'
+            );
         } finally {
             setIsLoading(false);
         }

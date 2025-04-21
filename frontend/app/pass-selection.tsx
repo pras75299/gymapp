@@ -11,10 +11,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { gymApi } from "../src/api/gymApi";
 import type { PassType } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function PassSelectionScreen() {
   const { qrIdentifier } = useLocalSearchParams<{ qrIdentifier: string }>();
   const router = useRouter();
+  const { isSignedIn } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [passes, setPasses] = useState<PassType[]>([]);
@@ -49,9 +51,22 @@ export default function PassSelectionScreen() {
 
   const handlePassSelect = async (passId: string) => {
     try {
+      // Check if user is authenticated using Clerk's isSignedIn
+      if (!isSignedIn) {
+        // Store the selected pass ID and current route before redirecting to sign-in
+        await AsyncStorage.multiSet([
+          ['selectedPassId', passId],
+          ['redirectAfterAuth', '/payment']
+        ]);
+        // Redirect to the existing sign-in page
+        router.push('/sign-in');
+        return;
+      }
+
+      // Proceed with purchasing the pass if authenticated
       const order = await gymApi.purchasePass(passId);
       router.push({
-        pathname: "/payment",
+        pathname: '/payment',
         params: {
           passId: order.passId,
           orderId: order.orderId,
@@ -61,8 +76,8 @@ export default function PassSelectionScreen() {
         },
       });
     } catch (err) {
-      console.error("Error purchasing pass:", err);
-      setError("Failed to purchase pass");
+      console.error('Error purchasing pass:', err);
+      setError('Failed to purchase pass');
     }
   };
 
