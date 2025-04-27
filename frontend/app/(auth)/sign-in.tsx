@@ -55,8 +55,17 @@ export default function SignInScreen() {
               throw new Error("User ID not found");
             }
 
+            const deviceId = await AsyncStorage.getItem("deviceId");
+            if (!deviceId) {
+              throw new Error("Device ID not found");
+            }
+
             // Proceed with payment flow
-            const order = await gymApi.purchasePass(storedPassId[1], userId);
+            const order = await gymApi.purchasePass(
+              storedPassId[1],
+              userId,
+              deviceId
+            );
 
             // Ensure we're still signed in before proceeding
             if (!isSignedIn) {

@@ -66,7 +66,7 @@ const getGymHandler: RequestHandler<{ qrIdentifier: string }> = async (req, res,
 
 const purchasePassHandler: RequestHandler = async (req, res) => {
   try {
-    const { passId } = req.body;
+    const { passId, deviceId } = req.body;
     const userId = req.headers['x-user-id'] as string;
 
     if (!passId) {
@@ -102,6 +102,7 @@ const purchasePassHandler: RequestHandler = async (req, res) => {
       data: {
         passTypeId: passId,
         userId,
+        deviceId,
         purchaseDate: new Date(),
         expiryDate,
         paymentStatus: 'pending',

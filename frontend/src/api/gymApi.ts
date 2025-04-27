@@ -103,14 +103,14 @@ export const gymApi = {
         }
     },
 
-    purchasePass: async (passId: string, userId: string): Promise<RazorpayOrder> => {
+    purchasePass: async (passId: string, userId: string, deviceId: string): Promise<RazorpayOrder> => {
         if (!API_URL) throw new Error('API URL not configured');
         if (!userId) throw new Error('User ID is required');
-        
+        if (!deviceId) throw new Error('Device ID is required');
         console.log(`[gymApi] Purchasing pass: ${passId} at ${API_URL}/passes/purchase`);
         try {
             const response = await apiClient.post('/passes/purchase', 
-                { passId },
+                { passId, deviceId },
                 { headers: { 'x-user-id': userId } }
             );
             console.log(`[gymApi] Pass purchase initiated, status: ${response.status}`);

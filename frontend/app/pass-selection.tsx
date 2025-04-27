@@ -67,8 +67,13 @@ export default function PassSelectionScreen() {
         throw new Error("User ID not found");
       }
 
+      const deviceId = await AsyncStorage.getItem("deviceId");
+      if (!deviceId) {
+        throw new Error("Device ID not found");
+      }
+
       // Proceed with purchasing the pass if authenticated
-      const order = await gymApi.purchasePass(passId, userId);
+      const order = await gymApi.purchasePass(passId, userId, deviceId);
       router.push({
         pathname: "/payment",
         params: {

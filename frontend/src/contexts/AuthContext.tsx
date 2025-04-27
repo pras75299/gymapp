@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useAuth as useClerkAuth } from "@clerk/clerk-expo";
+import { useAuth as useClerkAuth, useUser } from "@clerk/clerk-expo";
 import { gymApi } from "../api/gymApi";
 
 interface AuthContextType {
@@ -22,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     userId = null,
     isLoaded = false,
   } = useClerkAuth();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -30,9 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           await gymApi.upsertUser({
             id: userId,
-            email: undefined,
-            name: undefined,
-            phoneNumber: undefined,
+            email: user?.primaryEmailAddress?.emailAddress || undefined,
+            name: user?.fullName || undefined,
+            phoneNumber: user?.primaryPhoneNumber?.phoneNumber || undefined,
           });
         } catch (error) {
           console.error("Error upserting user:", error);
@@ -42,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     upsertUser();
-  }, [isSignedIn, userId]);
+  }, [isSignedIn, userId, user]);
 
   return (
     <AuthContext.Provider
