@@ -3,24 +3,33 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { PurchasedPass } from '../types';
 
-// Read the API URL from Expo's configuration (app.config.js -> extra.apiUrl)
-const API_URL = Constants.expoConfig?.extra?.apiUrl;
+// Use the configured API URL or fallback to localhost
+const API_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8080';
 
-if (!API_URL) {
-    console.error(
-        '[gymApi] ERROR: API URL not configured. Please set extra.apiUrl in app.config.js'
-    );
-    // Optional: You could throw an error or provide a default, but warning is safer
-}
-
-console.log(`[gymApi] Using Configured API_URL: ${API_URL}`);
+console.log(`[gymApi] Using API_URL: ${API_URL}`);
 
 const apiClient = axios.create({
-    baseURL: 'https://gymapp-coral.vercel.app/api',
+    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 10000, // 10 second timeout
 });
+
+// Add response interceptor for better error handling
+apiClient.interceptors.response.use(
+    response => response,
+    error => {
+        console.error('[gymApi] Request failed:', {
+            url: error.config?.url,
+            method: error.config?.method,
+            status: error.response?.status,
+            message: error.message,
+            response: error.response?.data
+        });
+        return Promise.reject(error);
+    }
+);
 
 export interface Gym {
     id: string;
@@ -61,6 +70,13 @@ export interface PurchaseResult {
     clientSecret: string;
 }
 
+export interface User {
+    id: string;
+    email?: string;
+    name?: string;
+    phoneNumber?: string;
+}
+
 export class ApiError extends Error {
     constructor(message: string) {
         super(message);
@@ -87,16 +103,20 @@ export const gymApi = {
         }
     },
 
-    purchasePass: async (passId: string): Promise<RazorpayOrder> => {
+    purchasePass: async (passId: string, userId: string): Promise<RazorpayOrder> => {
         if (!API_URL) throw new Error('API URL not configured');
+        if (!userId) throw new Error('User ID is required');
+        
         console.log(`[gymApi] Purchasing pass: ${passId} at ${API_URL}/passes/purchase`);
         try {
-            const response = await apiClient.post('/passes/purchase', { passId });
+            const response = await apiClient.post('/passes/purchase', 
+                { passId },
+                { headers: { 'x-user-id': userId } }
+            );
             console.log(`[gymApi] Pass purchase initiated, status: ${response.status}`);
             return response.data;
         } catch (error) {
             console.error('[gymApi] Error purchasing pass:', error);
-            // Temporarily simplify error logging
             if (axios.isAxiosError(error)) {
                 console.error('[gymApi] Axios error status:', error.response?.status);
                 console.error('[gymApi] Axios error message:', error.message);
@@ -151,15 +171,24 @@ export const gymApi = {
         }
     },
 
-    getActivePasses: async (deviceId: string): Promise<PurchasedPass[]> => {
+    getActivePasses: async (deviceId: string, userId: string): Promise<PurchasedPass[]> => {
         if (!API_URL) throw new Error('API URL not configured');
         try {
             const response = await apiClient.get(`/passes/active`, {
-                params: { deviceId }
+                params: { deviceId },
+                headers: {
+                    'x-user-id': userId
+                }
             });
+            console.log('[gymApi] Active passes response:', response.data);
             return response.data;
         } catch (error) {
             console.error('[gymApi] Error fetching active passes:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('[gymApi] Axios error status:', error.response?.status);
+                console.error('[gymApi] Axios error message:', error.message);
+                console.error('[gymApi] Axios error response:', error.response?.data);
+            }
             throw new ApiError("Failed to fetch active passes");
         }
     },
@@ -181,6 +210,23 @@ export const gymApi = {
                 console.error('[gymApi] Axios error response:', error.response?.data);
             }
             throw new ApiError("Failed to validate QR code");
+        }
+    },
+
+    upsertUser: async (userData: User): Promise<User> => {
+        if (!API_URL) throw new Error('API URL not configured');
+        try {
+            const response = await apiClient.post('/users/me', userData);
+            console.log('[gymApi] User upserted:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('[gymApi] Error upserting user:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('[gymApi] Axios error status:', error.response?.status);
+                console.error('[gymApi] Axios error message:', error.message);
+                console.error('[gymApi] Axios error response:', error.response?.data);
+            }
+            throw new ApiError("Failed to upsert user");
         }
     }
 };

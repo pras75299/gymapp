@@ -13,7 +13,7 @@ module.exports = ({ config }) => {
       scheme: "myapp",
       userInterfaceStyle: "automatic",
       splash: {
-        image: "./assets/images/splash.png",
+        image: "./assets/images/splash-icon.png",
         resizeMode: "contain",
         backgroundColor: "#ffffff",
       },

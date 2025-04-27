@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from '../contexts/AuthContext';
-import { useClerk, useUser } from '@clerk/clerk-expo';
+import { useAuth } from "../src/contexts/AuthContext";
+import { useClerk, useUser } from "@clerk/clerk-expo";
 
 export default function HomePage() {
   const router = useRouter();
@@ -26,14 +26,14 @@ export default function HomePage() {
     try {
       await signOut();
       setDropdownVisible(false);
-      router.replace('/sign-in');
+      router.replace("/sign-in");
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error("Logout error:", err);
     }
   };
 
   const handleScanPress = () => {
-    router.push('/qr-scanner');
+    router.push("/qr-scanner");
   };
 
   const handleProfilePress = () => {
@@ -62,7 +62,7 @@ export default function HomePage() {
           {isSignedIn && (
             <TouchableOpacity
               style={[styles.scanButton, styles.myPassesButton]}
-              onPress={() => router.push('/my-passes')}
+              onPress={() => router.push("/my-passes")}
             >
               <Ionicons name="card-outline" size={24} color="white" />
               <Text style={styles.scanButtonText}>My Passes</Text>
@@ -95,25 +95,25 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: "white",
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "rgba(255, 255, 255, 0.9)",
     marginBottom: 40,
-    textAlign: 'center',
+    textAlign: "center",
   },
   scanButton: {
-    backgroundColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 15,
     borderRadius: 12,
-    width: '80%',
+    width: "80%",
     maxWidth: 300,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -123,26 +123,26 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   scanButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 10,
   },
   myPassesButton: {
     marginTop: 20,
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   // Profile dropdown styles
   profileCircle: {
     width: 32,
     height: 32,
     borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: "#4CAF50",
   },
   profileImage: {
     width: 30,
@@ -150,61 +150,61 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   profileInitials: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
+    color: "#4CAF50",
+    fontWeight: "bold",
     fontSize: 20,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.2)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
   },
   dropdownMenu: {
     marginTop: 80,
     marginRight: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     minWidth: 180,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 8,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   dropdownName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#222',
+    fontWeight: "bold",
+    color: "#222",
     marginBottom: 12,
   },
   dropdownSignOut: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
   },
   dropdownSignOutText: {
-    color: '#ff4444',
+    color: "#ff4444",
     fontSize: 16,
     marginLeft: 8,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   authButton: {
     padding: 10,
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
-    backgroundColor: '#4CAF50',
-    marginLeft: 'auto',
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "flex-end",
+    backgroundColor: "#4CAF50",
+    marginLeft: "auto",
     marginTop: 60,
     marginRight: 10,
     borderRadius: 10,
   },
   authButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    textAlign: 'right',
+    textAlign: "right",
   },
 });

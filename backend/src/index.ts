@@ -22,10 +22,27 @@ const app = express();
 const port = parseInt(process.env.PORT || '8080', 10);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:8081', 'http://localhost:8080'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
+  credentials: true
+}));
+
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers,
+    body: req.body
+  });
+  next();
+});
+
 app.use(express.json());
 
-// Gym endpoint
+// Define all handlers first
 const getGymHandler: RequestHandler<{ qrIdentifier: string }> = async (req, res, next) => {
   try {
     const { qrIdentifier } = req.params;
@@ -47,13 +64,18 @@ const getGymHandler: RequestHandler<{ qrIdentifier: string }> = async (req, res,
   }
 };
 
-// Purchase pass endpoint
 const purchasePassHandler: RequestHandler = async (req, res) => {
   try {
     const { passId } = req.body;
+    const userId = req.headers['x-user-id'] as string;
 
     if (!passId) {
       res.status(400).json({ error: 'Pass ID is required' });
+      return;
+    }
+
+    if (!userId) {
+      res.status(401).json({ error: 'User ID is required' });
       return;
     }
 
@@ -79,6 +101,7 @@ const purchasePassHandler: RequestHandler = async (req, res) => {
     const purchasedPass = await prisma.purchasedPass.create({
       data: {
         passTypeId: passId,
+        userId,
         purchaseDate: new Date(),
         expiryDate,
         paymentStatus: 'pending',
@@ -120,7 +143,6 @@ const purchasePassHandler: RequestHandler = async (req, res) => {
   }
 };
 
-// Razorpay webhook handler
 const razorpayWebhookHandler: RequestHandler = async (req, res) => {
   try {
     // Verify webhook signature
@@ -158,13 +180,19 @@ const razorpayWebhookHandler: RequestHandler = async (req, res) => {
   }
 };
 
-// Pass status endpoint
 const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res) => {
   try {
     const { passId } = req.params;
+    const userId = req.headers['x-user-id'] as string;
+
+    if (!userId) {
+      res.status(401).json({ error: 'User ID is required' });
+      return;
+    }
 
     const purchasedPass = await prisma.purchasedPass.findUnique({
-      where: { id: passId }
+      where: { id: passId },
+      include: { passType: true }
     });
 
     if (!purchasedPass) {
@@ -172,9 +200,18 @@ const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res
       return;
     }
 
+    // Verify the pass belongs to the requesting user
+    if (purchasedPass.userId !== userId) {
+      res.status(403).json({ error: 'Unauthorized access to pass' });
+      return;
+    }
+
     res.json({
       status: purchasedPass.paymentStatus,
-      qrCodeValue: purchasedPass.paymentStatus === 'succeeded' ? purchasedPass.qrCodeValue : undefined
+      qrCodeValue: purchasedPass.paymentStatus === 'succeeded' ? purchasedPass.qrCodeValue : undefined,
+      passType: purchasedPass.passType,
+      expiryDate: purchasedPass.expiryDate,
+      isActive: purchasedPass.isActive
     });
   } catch (error) {
     console.error('Error getting pass status:', error);
@@ -182,7 +219,6 @@ const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res
   }
 };
 
-// Payment confirmation handler
 const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> => {
   const { passId, paymentId } = req.body;
 
@@ -231,11 +267,17 @@ const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> =>
   }
 };
 
-// Get active passes endpoint
 const getActivePassesHandler: RequestHandler = async (req, res) => {
   try {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) {
+      res.status(401).json({ error: 'User ID is required' });
+      return;
+    }
+
     const activePasses = await prisma.purchasedPass.findMany({
       where: {
+        userId,
         isActive: true,
         paymentStatus: 'succeeded',
         expiryDate: {
@@ -262,7 +304,6 @@ const getActivePassesHandler: RequestHandler = async (req, res) => {
   }
 };
 
-// QR code validation endpoint
 const validateQrCodeHandler: RequestHandler = async (req, res) => {
   try {
     const { pass_id } = req.query;
@@ -325,7 +366,8 @@ const validateQrCodeHandler: RequestHandler = async (req, res) => {
         remainingMinutes,
         amount: (purchasedPass as any).amount,
         currency: (purchasedPass as any).currency,
-        status: purchasedPass.paymentStatus
+        status: purchasedPass.paymentStatus,
+        userId: purchasedPass.userId
       } : null
     });
   } catch (error) {
@@ -365,6 +407,60 @@ const rateLimitMiddleware: RequestHandler = (req, res, next) => {
   next();
 };
 
+// Upsert user endpoint
+const upsertUserHandler: RequestHandler = async (req, res) => {
+  console.log('Received upsert user request:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers,
+    body: req.body
+  });
+
+  try {
+    const { id, email, name, phoneNumber } = req.body;
+    console.log('Upserting user with data:', { id, email, name, phoneNumber });
+
+    if (!id) {
+      console.log('Missing user ID in request');
+      res.status(400).json({ error: 'User ID is required' });
+      return;
+    }
+
+    const user = await prisma.user.upsert({
+      where: { id },
+      update: {
+        email: email || undefined,
+        name: name || undefined,
+        phoneNumber: phoneNumber || undefined,
+        updatedAt: new Date()
+      },
+      create: {
+        id,
+        email: email || null,
+        name: name || null,
+        phoneNumber: phoneNumber || null
+      }
+    });
+
+    console.log('Successfully upserted user:', user);
+    res.json(user);
+  } catch (error) {
+    console.error('Error upserting user:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      if (error.stack) {
+        console.error('Error stack:', error.stack);
+      }
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Mount all routes after handlers are defined
+app.get('/', (req, res) => {
+  res.json({ message: 'Hello, world!' });
+});
+
 app.get('/api/gym/:qrIdentifier', getGymHandler);
 app.post('/api/passes/purchase', purchasePassHandler);
 app.post('/api/payments/confirm', confirmPaymentHandler);
@@ -372,12 +468,9 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebh
 app.get('/api/passes/:passId/status', getPassStatusHandler);
 app.get('/api/passes/active', getActivePassesHandler);
 app.get('/api/validate', rateLimitMiddleware, validateQrCodeHandler);
+app.post('/api/users/me', upsertUserHandler);
 
 // Start server
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
-});
-
-app.get('/', (req, res) => {
-  res.json({ message: 'Hello, world!' });
 });

@@ -15,8 +15,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PurchasedPass } from "../src/types";
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
+import { useAuth } from "../src/contexts/AuthContext";
 
 export default function MyPassesScreen() {
+  const { userId } = useAuth();
   const [activePasses, setActivePasses] = useState<PurchasedPass[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export default function MyPassesScreen() {
         "lastPurchasedPassId",
         "paymentAmount",
         "paymentCurrency",
-        "activePasses"
+        "activePasses",
       ]);
       console.log("[MyPasses] Cleared all pass data from AsyncStorage");
     } catch (error) {
@@ -43,20 +45,22 @@ export default function MyPassesScreen() {
 
   const fetchPasses = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
+
       const deviceId = await AsyncStorage.getItem("deviceId");
-      if (!deviceId) {
-        setError("Device ID not found");
-        return;
+      if (deviceId && userId) {
+        const activePasses = await gymApi.getActivePasses(deviceId, userId);
+        setActivePasses(activePasses);
       }
 
-      const passes = await gymApi.getActivePasses(deviceId);
-      setActivePasses(passes);
-
       // If no passes are found in the database but we have data in AsyncStorage
-      if (passes.length === 0) {
+      if (activePasses.length === 0) {
         const storedPasses = await AsyncStorage.getItem("activePasses");
         if (storedPasses) {
-          console.log("[MyPasses] Found stale pass data in AsyncStorage, clearing...");
+          console.log(
+            "[MyPasses] Found stale pass data in AsyncStorage, clearing..."
+          );
           await clearPassData();
         }
       }
@@ -64,7 +68,7 @@ export default function MyPassesScreen() {
       // Clear any pending payment data after successful fetch
       const lastPassId = await AsyncStorage.getItem("lastPurchasedPassId");
       if (lastPassId) {
-        const newPass = passes.find((pass) => pass.id === lastPassId);
+        const newPass = activePasses.find((pass) => pass.id === lastPassId);
         if (newPass && newPass.paymentStatus === "succeeded") {
           await AsyncStorage.multiRemove([
             "lastPurchasedPassId",
@@ -73,8 +77,6 @@ export default function MyPassesScreen() {
           ]);
         }
       }
-
-      setError(null);
     } catch (err) {
       console.error("Error fetching passes:", err);
       setError("Failed to load passes. Please try again.");
@@ -83,7 +85,7 @@ export default function MyPassesScreen() {
       setRefreshing(false);
       setVerifyingPayment(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchPasses();
@@ -167,7 +169,10 @@ export default function MyPassesScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/")} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.push("/")}
+          style={styles.backButton}
+        >
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>My Active Pass</Text>
@@ -191,7 +196,12 @@ export default function MyPassesScreen() {
             <Text style={styles.expiryDate}>
               Expires: {new Date(pass.expiryDate).toLocaleDateString()}
             </Text>
-            <Text style={[styles.status, pass.isActive ? styles.activeStatus : styles.inactiveStatus]}>
+            <Text
+              style={[
+                styles.status,
+                pass.isActive ? styles.activeStatus : styles.inactiveStatus,
+              ]}
+            >
               {pass.isActive ? "Active" : "Expired"}
             </Text>
           </View>
@@ -330,28 +340,28 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
-    position: 'relative',
-    width: '100%',
+    position: "relative",
+    width: "100%",
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     padding: 0,
     paddingRight: 10,
   },
   backButtonText: {
-    color: '#000',
+    color: "#000",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "#007AFF",
+    textAlign: "center",
   },
 });

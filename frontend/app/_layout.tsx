@@ -1,11 +1,11 @@
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ClerkProvider } from '@clerk/clerk-expo';
-import { tokenCache } from '@clerk/clerk-expo/token-cache'
-import { AuthProvider } from '../contexts/AuthContext';
-import Constants from 'expo-constants';
-import { DeviceIdInitializer } from '../components/DeviceIdInitializer';
-import { UserProfileDropdown } from '../components/UserProfileDropdown';
+import { ClerkProvider } from "@clerk/clerk-expo";
+import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { AuthProvider } from "../src/contexts/AuthContext";
+import Constants from "expo-constants";
+import { DeviceIdInitializer } from "../components/DeviceIdInitializer";
+import { UserProfileDropdown } from "../components/UserProfileDropdown";
 
 // const tokenCache = {
 //   async getToken(key: string) {
@@ -27,16 +27,13 @@ import { UserProfileDropdown } from '../components/UserProfileDropdown';
 const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 if (!clerkPublishableKey) {
-  console.error('Clerk publishable key is missing!');
-  throw new Error('Clerk publishable key is required');
+  console.error("Clerk publishable key is missing!");
+  throw new Error("Clerk publishable key is required");
 }
 
 export default function RootLayout() {
   return (
-    <ClerkProvider
-      tokenCache={tokenCache}
-      publishableKey={clerkPublishableKey}
-    >
+    <ClerkProvider tokenCache={tokenCache} publishableKey={clerkPublishableKey}>
       <AuthProvider>
         <SafeAreaProvider>
           <DeviceIdInitializer>

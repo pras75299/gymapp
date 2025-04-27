@@ -36,10 +36,22 @@ model PassType {
   purchasedPasses PurchasedPass[]
 }
 
+model User {
+  id              String          @id
+  email           String?         @unique
+  name            String?
+  phoneNumber     String?
+  purchasedPasses PurchasedPass[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
 model PurchasedPass {
   id              String   @id @default(cuid())
   passTypeId      String
   passType        PassType @relation(fields: [passTypeId], references: [id])
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
   deviceId        String? // Add device/session identifier
   purchaseDate    DateTime @default(now())
   expiryDate      DateTime
@@ -48,7 +60,7 @@ model PurchasedPass {
   qrCodeValue     String   @unique
   isActive        Boolean  @default(true)
   amount          Decimal? @db.Decimal(10, 2) // Amount paid for the pass
-  currency        String   @default("INR")    // Currency of the payment
+  currency        String   @default("INR") // Currency of the payment
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
