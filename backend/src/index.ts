@@ -467,7 +467,7 @@ app.post('/api/passes/purchase', purchasePassHandler);
 app.post('/api/payments/confirm', confirmPaymentHandler);
 app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
 app.get('/api/passes/:passId/status', getPassStatusHandler);
-app.get('/api/passes/active', getActivePassesHandler);
+app.get('/api/passes/active',rateLimitMiddleware, getActivePassesHandler);
 app.get('/api/validate', rateLimitMiddleware, validateQrCodeHandler);
 app.post('/api/users/me', upsertUserHandler);
 

@@ -94,7 +94,7 @@ export default function MyPassesScreen() {
       if (activePasses.length === 0) {
         fetchPasses();
       }
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(pollInterval);
   }, [fetchPasses]);

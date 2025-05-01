@@ -180,7 +180,7 @@ export const gymApi = {
                     'x-user-id': userId
                 }
             });
-            console.log('[gymApi] Active passes response:', response.data);
+            //console.log('[gymApi] Active passes response:', response.data);
             return response.data;
         } catch (error) {
             console.error('[gymApi] Error fetching active passes:', error);
