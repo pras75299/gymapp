@@ -9,46 +9,69 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import { gymApi, PassStatus } from "../src/api/gymApi";
+import { API_POLLING_INTERVAL, API_POLLING_MAX_ATTEMPTS } from "../src/constants/app";
+import { logger } from "../src/utils/logger";
+import { useAuth } from "../src/contexts/AuthContext";
 
 export default function SuccessScreen() {
   const { passId } = useLocalSearchParams<{ passId: string }>();
+  const { userId } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [passStatus, setPassStatus] = useState<PassStatus | null>(null);
 
   useEffect(() => {
-    let pollingInterval: NodeJS.Timeout;
+    let pollingInterval: NodeJS.Timeout | null = null;
     let attempts = 0;
-    const maxAttempts = 10;
 
     const fetchPassStatus = async () => {
+      if (!userId || !passId) {
+        setError("User ID or Pass ID is missing");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const status = await gymApi.getPassStatus(passId);
+        const status = await gymApi.getPassStatus(passId, userId);
         setPassStatus(status);
 
         if (status.status === "succeeded" && status.qrCodeValue) {
           setLoading(false);
-          if (pollingInterval) clearInterval(pollingInterval);
-        } else if (++attempts >= maxAttempts) {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
+        } else if (++attempts >= API_POLLING_MAX_ATTEMPTS) {
           setError("Payment confirmation is taking longer than expected");
           setLoading(false);
-          if (pollingInterval) clearInterval(pollingInterval);
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
         }
       } catch (error) {
+        logger.error("Error fetching pass status", error);
         setError("Failed to load pass details");
         setLoading(false);
-        if (pollingInterval) clearInterval(pollingInterval);
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
       }
     };
 
-    fetchPassStatus();
-    pollingInterval = setInterval(fetchPassStatus, 2000);
+    if (passId) {
+      fetchPassStatus();
+      pollingInterval = setInterval(fetchPassStatus, API_POLLING_INTERVAL);
+    }
 
     return () => {
-      if (pollingInterval) clearInterval(pollingInterval);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
     };
-  }, [passId]);
+  }, [passId, userId]);
 
   const handleViewPasses = () => {
     router.replace("/my-passes");

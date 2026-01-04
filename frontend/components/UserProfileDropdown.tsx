@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useSegments } from "expo-router";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { useAuth } from "../src/contexts/AuthContext";
+import { logger } from "../src/utils/logger";
 
 export function UserProfileDropdown() {
   const { isSignedIn } = useAuth();
@@ -30,7 +31,7 @@ export function UserProfileDropdown() {
       setDropdownVisible(false);
       router.replace("/sign-in");
     } catch (err) {
-      console.error("Logout error:", err);
+      logger.error("Logout error", err);
     }
   };
 

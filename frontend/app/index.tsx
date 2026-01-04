@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -6,38 +6,17 @@ import {
   StyleSheet,
   ImageBackground,
   StatusBar,
-  Image,
-  Modal,
-  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../src/contexts/AuthContext";
-import { useClerk, useUser } from "@clerk/clerk-expo";
 
 export default function HomePage() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
-  const { signOut } = useClerk();
-  const { user } = useUser();
-  const [dropdownVisible, setDropdownVisible] = useState(false);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      setDropdownVisible(false);
-      router.replace("/sign-in");
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-  };
 
   const handleScanPress = () => {
     router.push("/qr-scanner");
-  };
-
-  const handleProfilePress = () => {
-    setDropdownVisible((v) => !v);
   };
 
   return (
@@ -131,80 +110,5 @@ const styles = StyleSheet.create({
   myPassesButton: {
     marginTop: 20,
     backgroundColor: "#4CAF50",
-  },
-  // Profile dropdown styles
-  profileCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 22,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "#4CAF50",
-  },
-  profileImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 20,
-  },
-  profileInitials: {
-    color: "#4CAF50",
-    fontWeight: "bold",
-    fontSize: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.2)",
-    justifyContent: "flex-start",
-    alignItems: "flex-end",
-  },
-  dropdownMenu: {
-    marginTop: 80,
-    marginRight: 20,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    minWidth: 180,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 8,
-    alignItems: "flex-start",
-  },
-  dropdownName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#222",
-    marginBottom: 12,
-  },
-  dropdownSignOut: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  dropdownSignOutText: {
-    color: "#ff4444",
-    fontSize: 16,
-    marginLeft: 8,
-    fontWeight: "600",
-  },
-  authButton: {
-    padding: 10,
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "flex-end",
-    backgroundColor: "#4CAF50",
-    marginLeft: "auto",
-    marginTop: 60,
-    marginRight: 10,
-    borderRadius: 10,
-  },
-  authButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    textAlign: "right",
   },
 });

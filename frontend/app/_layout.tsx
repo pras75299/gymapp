@@ -6,6 +6,7 @@ import { AuthProvider } from "../src/contexts/AuthContext";
 import Constants from "expo-constants";
 import { DeviceIdInitializer } from "../components/DeviceIdInitializer";
 import { UserProfileDropdown } from "../components/UserProfileDropdown";
+import { logger } from "../src/utils/logger";
 
 // const tokenCache = {
 //   async getToken(key: string) {
@@ -27,7 +28,7 @@ import { UserProfileDropdown } from "../components/UserProfileDropdown";
 const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 if (!clerkPublishableKey) {
-  console.error("Clerk publishable key is missing!");
+  logger.error("Clerk publishable key is missing!");
   throw new Error("Clerk publishable key is required");
 }
 

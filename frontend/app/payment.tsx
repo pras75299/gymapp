@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -10,6 +10,9 @@ import { WebView } from "react-native-webview";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../src/api/gymApi";
+import { PAYMENT_MANUAL_CLOSE_TIMEOUT, PAYMENT_TIMEOUT, PAYMENT_SUCCESS_REDIRECT_DELAY, ERROR_MESSAGES } from "../src/constants/app";
+import { logger } from "../src/utils/logger";
+import { useAuth } from "../src/contexts/AuthContext";
 
 declare global {
   interface Window {
@@ -21,6 +24,7 @@ declare global {
 
 export default function PaymentScreen() {
   const router = useRouter();
+  const { userId } = useAuth();
   const params = useLocalSearchParams<{
     passId: string;
     amount: string;
@@ -33,26 +37,40 @@ export default function PaymentScreen() {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [showManualClose, setShowManualClose] = useState(false);
   const [purchasedPassId, setPurchasedPassId] = useState<string>("");
+  
+  // Use refs to track timers for proper cleanup
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const paymentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     validateAndInitializePayment();
 
-    const closeTimer = setTimeout(() => {
+    closeTimerRef.current = setTimeout(() => {
       setShowManualClose(true);
-    }, 30000);
+    }, PAYMENT_MANUAL_CLOSE_TIMEOUT);
 
-    const paymentTimeout = setTimeout(() => {
+    paymentTimeoutRef.current = setTimeout(() => {
       if (!paymentCompleted) {
+        logger.warn('Payment timeout reached');
         router.replace({
           pathname: "/my-passes",
-          params: { paymentError: "Payment timeout" },
+          params: { paymentError: ERROR_MESSAGES.PAYMENT_TIMEOUT },
         });
       }
-    }, 300000);
+    }, PAYMENT_TIMEOUT);
 
     return () => {
-      clearTimeout(closeTimer);
-      clearTimeout(paymentTimeout);
+      // Cleanup all timers on unmount
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+      if (paymentTimeoutRef.current) {
+        clearTimeout(paymentTimeoutRef.current);
+      }
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
     };
   }, []);
 
@@ -60,9 +78,20 @@ export default function PaymentScreen() {
     const { passId, amount, currency, orderId, keyId } = params;
 
     if (!passId || !amount || !currency || !orderId || !keyId) {
+      logger.error('Missing payment parameters', { passId, amount, currency, orderId, keyId });
       router.replace({
         pathname: "/my-passes",
         params: { paymentError: "Missing payment parameters" },
+      });
+      return;
+    }
+
+    // Validate passId is not empty
+    if (passId.trim() === "") {
+      logger.error('Empty passId provided');
+      router.replace({
+        pathname: "/my-passes",
+        params: { paymentError: "Invalid payment parameters" },
       });
       return;
     }
@@ -129,65 +158,78 @@ export default function PaymentScreen() {
   const handlePaymentResponse = async (event: any) => {
     try {
       const response = JSON.parse(event.nativeEvent.data);
-      console.log("[Payment] Received payment response:", response.type);
+      logger.info('Payment response received', { type: response.type });
 
       if (response.type === "success") {
         try {
           const deviceId = await AsyncStorage.getItem("deviceId");
-          if (!deviceId) throw new Error("Device ID not found");
+          if (!deviceId) {
+            throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
+          }
+
+          if (!purchasedPassId || purchasedPassId.trim() === "") {
+            throw new Error("Pass ID not available");
+          }
+
+          if (!userId) {
+            throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
+          }
 
           // 1. First verify payment with backend using stored pass ID
-          console.log("[Payment] Verifying payment with backend...");
-          console.log("[Payment] Using pass ID:", purchasedPassId);
+          logger.info('Verifying payment with backend', { passId: purchasedPassId, userId });
           await gymApi.confirmPayment(
             purchasedPassId,
-            response.data.razorpay_payment_id
+            response.data.razorpay_payment_id,
+            userId
           );
-          console.log("[Payment] Payment verified successfully");
+          logger.info('Payment verified successfully');
 
           // 2. After verification success, store details
-          console.log("[Payment] Storing payment details...");
           await AsyncStorage.multiSet([
             ["lastPurchasedPassId", purchasedPassId],
             ["paymentAmount", params.amount],
             ["paymentCurrency", params.currency],
           ]);
-          console.log("[Payment] Payment details stored");
 
-          // 3. Show success screen
-          console.log("[Payment] Showing success screen");
+          // 3. Clear timers before showing success
+          if (closeTimerRef.current) {
+            clearTimeout(closeTimerRef.current);
+          }
+          if (paymentTimeoutRef.current) {
+            clearTimeout(paymentTimeoutRef.current);
+          }
+
+          // 4. Show success screen
           setPaymentCompleted(true);
           setShowManualClose(false);
 
-          // 4. Redirect after delay
-          console.log("[Payment] Starting redirect timer");
-          setTimeout(() => {
-            console.log("[Payment] Redirecting to my-passes now");
+          // 5. Redirect after delay
+          redirectTimerRef.current = setTimeout(() => {
             router.replace("/my-passes");
-          }, 2000);
+          }, PAYMENT_SUCCESS_REDIRECT_DELAY);
 
         } catch (error) {
-          console.error("[Payment] Payment verification failed:", error);
+          logger.error('Payment verification failed', error);
           router.replace({
             pathname: "/my-passes",
-            params: { paymentError: "Payment verification failed" },
+            params: { paymentError: ERROR_MESSAGES.PAYMENT_VERIFICATION_FAILED },
           });
         }
       } else if (response.type === "payment_failed") {
-        console.log("[Payment] Payment failed");
+        logger.warn('Payment failed');
         router.replace({
           pathname: "/my-passes",
-          params: { paymentError: "Payment failed" },
+          params: { paymentError: ERROR_MESSAGES.PAYMENT_FAILED },
         });
       } else if (response.type === "modal_closed" && !paymentCompleted) {
-        console.log("[Payment] Payment modal closed by user");
+        logger.info('Payment modal closed by user');
         router.back();
       }
     } catch (error) {
-      console.error("[Payment] Payment processing error:", error);
+      logger.error('Payment processing error', error);
       router.replace({
         pathname: "/my-passes",
-        params: { paymentError: "Payment processing failed" },
+        params: { paymentError: ERROR_MESSAGES.PAYMENT_PROCESSING_FAILED },
       });
     }
   };
@@ -226,16 +268,16 @@ export default function PaymentScreen() {
         domStorageEnabled={true}
         startInLoadingState={true}
         onNavigationStateChange={(navState) => {
-          console.log("[Payment] Navigation state changed:", navState.url);
+          logger.debug('Navigation state changed', { url: navState.url });
 
           // Check for Razorpay callback URL with successful payment
           if (navState.url.includes('/callback/') && navState.url.includes('status=authorized')) {
-            console.log("[Payment] Detected successful payment in callback URL");
+            logger.info('Detected successful payment in callback URL');
 
             // Extract payment ID from URL
             const paymentId = navState.url.split('payments/')[1]?.split('/')[0];
             if (paymentId) {
-              console.log("[Payment] Extracted payment ID:", paymentId);
+              logger.info('Extracted payment ID from URL', { paymentId });
 
               // Simulate the payment success response
               handlePaymentResponse({
@@ -257,7 +299,7 @@ export default function PaymentScreen() {
           }
         }}
         onError={(error) => {
-          console.error("[Payment] WebView Error:", error);
+          logger.error('WebView error', error);
           router.replace({
             pathname: "/my-passes",
             params: { paymentError: "Payment error occurred" },
@@ -269,7 +311,7 @@ export default function PaymentScreen() {
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => {
-            console.log("[Payment] Manual close button pressed");
+            logger.info('Manual close button pressed');
             router.back();
           }}
         >

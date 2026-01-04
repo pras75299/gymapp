@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,15 +12,19 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
-import { useSignIn } from "@clerk/clerk-expo";
+import { useSignIn, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../../src/api/gymApi";
+import { ERROR_MESSAGES } from "../../src/constants/app";
+import { logger } from "../../src/utils/logger";
 
 export default function SignInScreen() {
   const router = useRouter();
   const { isSignedIn, userId } = useAuth();
   const { signIn, setActive } = useSignIn();
+  const { user } = useUser();
+  const clerk = useClerk();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +32,7 @@ export default function SignInScreen() {
 
   const handleSignIn = async () => {
     setIsLoading(true);
+    setError("");
     try {
       const completeSignIn = await signIn?.create({
         identifier: email,
@@ -35,6 +40,10 @@ export default function SignInScreen() {
       });
       if (completeSignIn?.createdSessionId) {
         await setActive?.({ session: completeSignIn.createdSessionId });
+
+        // Wait for auth state to be ready before proceeding
+        // Use a small delay to ensure Clerk has updated the session
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Check for stored pass ID and redirect path
         const [storedPassId, redirectPath] = await AsyncStorage.multiGet([
@@ -50,44 +59,70 @@ export default function SignInScreen() {
               "redirectAfterAuth",
             ]);
 
-            // Get the user ID from AuthContext
-            if (!userId) {
-              throw new Error("User ID not found");
+            // Get userId after sign-in
+            // After setActive, Clerk updates the session but hook values (userId, user) are captured at render time
+            // We cannot re-read hook values in async functions - they remain stale
+            // Solution: Use Clerk's client API to get the current user after setActive
+            let currentUserId: string | null = null;
+            
+            // After setActive, wait a moment for Clerk to update the session
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Get userId from Clerk's client - this accesses the current session state
+            // The clerk object from useClerk() provides access to the current user
+            if (clerk.user?.id) {
+              currentUserId = clerk.user.id;
+            } else {
+              // If not available immediately, wait a bit more and try again
+              // Clerk updates the client object reactively after setActive
+              let attempts = 0;
+              const maxAttempts = 5;
+              
+              while (!currentUserId && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                // Check clerk.user which updates after setActive
+                if (clerk.user?.id) {
+                  currentUserId = clerk.user.id;
+                  break;
+                }
+                attempts++;
+              }
+            }
+
+            if (!currentUserId) {
+              logger.error('Unable to get userId after sign-in');
+              throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
             }
 
             const deviceId = await AsyncStorage.getItem("deviceId");
             if (!deviceId) {
-              throw new Error("Device ID not found");
+              throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
             }
 
             // Proceed with payment flow
+            logger.info('Proceeding with payment flow after sign-in', { passId: storedPassId[1] });
             const order = await gymApi.purchasePass(
               storedPassId[1],
-              userId,
+              currentUserId,
               deviceId
             );
-
-            // Ensure we're still signed in before proceeding
-            if (!isSignedIn) {
-              throw new Error("Authentication lost during payment process");
-            }
 
             router.replace({
               pathname: "/payment",
               params: {
                 passId: order.passId,
                 orderId: order.orderId,
-                amount: order.amount,
+                amount: order.amount.toString(),
                 currency: order.currency,
                 keyId: order.keyId,
               },
             });
           } catch (paymentError) {
-            console.error("Payment process error:", paymentError);
+            logger.error("Payment process error after sign-in", paymentError);
             // Show error to user and redirect to home
             Alert.alert(
               "Payment Error",
-              "There was an error processing your payment. Please try again.",
+              ERROR_MESSAGES.PAYMENT_ERROR || "There was an error processing your payment. Please try again.",
               [{ text: "OK", onPress: () => router.replace("/") }]
             );
           }
@@ -97,8 +132,8 @@ export default function SignInScreen() {
         }
       }
     } catch (error) {
-      console.error("Sign in error:", error);
-      setError("Failed to sign in");
+      logger.error("Sign in error", error);
+      setError("Failed to sign in. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }

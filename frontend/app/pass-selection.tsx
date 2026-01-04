@@ -12,6 +12,8 @@ import { gymApi } from "../src/api/gymApi";
 import type { PassType } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../src/contexts/AuthContext";
+import { ERROR_MESSAGES } from "../src/constants/app";
+import { logger } from "../src/utils/logger";
 
 export default function PassSelectionScreen() {
   const { qrIdentifier } = useLocalSearchParams<{ qrIdentifier: string }>();
@@ -39,14 +41,16 @@ export default function PassSelectionScreen() {
           setHasActivePass(activePasses.length > 0);
         }
       } catch (err) {
-        console.error("Error fetching passes:", err);
-        setError("Failed to fetch passes");
+        logger.error("Error fetching passes", err);
+        setError(ERROR_MESSAGES.FETCH_GYM_FAILED);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPasses();
+    if (qrIdentifier) {
+      fetchPasses();
+    }
   }, [qrIdentifier, userId]);
 
   const handlePassSelect = async (passId: string) => {
@@ -64,29 +68,30 @@ export default function PassSelectionScreen() {
       }
 
       if (!userId) {
-        throw new Error("User ID not found");
+        throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
       }
 
       const deviceId = await AsyncStorage.getItem("deviceId");
       if (!deviceId) {
-        throw new Error("Device ID not found");
+        throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
       }
 
       // Proceed with purchasing the pass if authenticated
+      logger.info('Purchasing pass', { passId, userId });
       const order = await gymApi.purchasePass(passId, userId, deviceId);
       router.push({
         pathname: "/payment",
         params: {
           passId: order.passId,
           orderId: order.orderId,
-          amount: order.amount,
+          amount: order.amount.toString(),
           currency: order.currency,
           keyId: order.keyId,
         },
       });
     } catch (err) {
-      console.error("Error purchasing pass:", err);
-      setError("Failed to purchase pass");
+      logger.error("Error purchasing pass", err);
+      setError(err instanceof Error ? err.message : ERROR_MESSAGES.PURCHASE_PASS_FAILED);
     }
   };
 

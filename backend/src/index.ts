@@ -1,210 +1,193 @@
 import express, { Request, Response, RequestHandler } from 'express';
 import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
-import { randomUUID } from 'crypto';
-import Razorpay from 'razorpay';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
-import { Prisma } from '@prisma/client';
-import { encodeQRData, decodeQRData, generateQRData } from './utils/qrUtils';
+import { prisma } from './utils/prisma';
+import { requestLogger } from './middleware/requestLogger';
+import { errorHandler } from './middleware/errorHandler';
+import { requireAuth } from './middleware/auth';
+import { validate, gymValidators, passValidators, userValidators } from './middleware/validators';
+import {
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  ValidationError,
+  InternalServerError,
+} from './utils/errors';
+import { logger } from './utils/logger';
+import {
+  createPurchasedPass,
+  createRazorpayOrder,
+  confirmPayment as confirmPaymentService,
+  generateQRCodeValue,
+} from './services/paymentService';
 
 // Load environment variables
 dotenv.config();
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || ''
-});
-
-const prisma = new PrismaClient();
 const app = express();
 const port = parseInt(process.env.PORT || '8080', 10);
 
-// Middleware
-app.use(cors({
-  origin: ['http://localhost:8081', 'http://localhost:8080'],
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',')
+    : ['http://localhost:8081', 'http://localhost:8080'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
-  credentials: true
-}));
+  credentials: true,
+};
 
-// Add request logging middleware
-app.use((req, res, next) => {
-  console.log('Incoming request:', {
-    method: req.method,
-    path: req.path,
-    headers: req.headers,
-    body: req.body
-  });
-  next();
-});
+app.use(cors(corsOptions));
+// Note: express.json() is NOT applied globally to preserve raw body for webhook verification
+// Only apply JSON parsing to routes that need it (via route-specific middleware)
+app.use(requestLogger);
 
-app.use(express.json());
-
-// Define all handlers first
+// Define all handlers
 const getGymHandler: RequestHandler<{ qrIdentifier: string }> = async (req, res, next) => {
   try {
     const { qrIdentifier } = req.params;
 
     const gym = await prisma.gym.findUnique({
       where: { qrIdentifier },
-      include: { passes: true }
+      include: { passes: true },
     });
 
     if (!gym) {
-      res.status(404).json({ error: 'Gym not found' });
-      return;
+      throw new NotFoundError('Gym', qrIdentifier);
     }
 
-    res.json(gym);
+    // Serialize Decimal prices to strings
+    const gymWithSerializedPasses = {
+      ...gym,
+      passes: gym.passes.map((pass) => ({
+        ...pass,
+        price: pass.price.toString(),
+      })),
+    };
+
+    res.json(gymWithSerializedPasses);
   } catch (error) {
-    console.error('Error fetching gym:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-const purchasePassHandler: RequestHandler = async (req, res) => {
+const purchasePassHandler: RequestHandler = async (req, res, next) => {
   try {
     const { passId, deviceId } = req.body;
-    const userId = req.headers['x-user-id'] as string;
-
-    if (!passId) {
-      res.status(400).json({ error: 'Pass ID is required' });
-      return;
-    }
-
+    const userId = req.userId;
+    
     if (!userId) {
-      res.status(401).json({ error: 'User ID is required' });
-      return;
+      throw new UnauthorizedError('User ID is required');
     }
 
-    // Find the pass type
-    const passType = await prisma.passType.findUnique({
-      where: { id: passId },
-      include: { gym: true }
-    });
-
-    if (!passType) {
-      res.status(404).json({ error: 'Pass type not found' });
-      return;
-    }
-
-    // Calculate expiry date
-    const expiryDate = new Date(Date.now() + passType.duration * 24 * 60 * 60 * 1000);
-
-    // Generate QR code value with backend URL
-    const qrCodeValue = `https://gymapp-coral.vercel.app/api/validate?pass_id=${passId}`;
-    console.log('Generated QR code URL for new pass:', qrCodeValue);
-
-    // Create a pending purchased pass
-    const purchasedPass = await prisma.purchasedPass.create({
-      data: {
-        passTypeId: passId,
-        userId,
-        deviceId,
-        purchaseDate: new Date(),
-        expiryDate,
-        paymentStatus: 'pending',
-        isActive: false,
-        amount: passType.price ? new Prisma.Decimal(passType.price.toString()) : null,
-        currency: passType.currency,
-        qrCodeValue
-      } as unknown as Prisma.PurchasedPassCreateInput
-    });
+    // Create purchased pass
+    const purchasedPass = await createPurchasedPass(passId, userId, deviceId);
 
     // Create Razorpay order
-    const order = await razorpay.orders.create({
-      amount: Math.round(Number(passType.price) * 100),
-      currency: 'INR',
-      receipt: purchasedPass.id,
-      notes: {
-        purchasedPassId: purchasedPass.id,
-        gymName: passType.gym.name,
-        passName: passType.name
-      }
-    });
+    const order = await createRazorpayOrder(passId, purchasedPass.id);
 
     // Update the purchased pass with the order ID
     await prisma.purchasedPass.update({
       where: { id: purchasedPass.id },
-      data: { paymentIntentId: order.id }
+      data: { paymentIntentId: order.orderId },
     });
 
     res.json({
       passId: purchasedPass.id,
-      orderId: order.id,
+      orderId: order.orderId,
       amount: order.amount,
       currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID
+      keyId: order.keyId,
     });
   } catch (error) {
-    console.error('Error purchasing pass:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-const razorpayWebhookHandler: RequestHandler = async (req, res) => {
+const razorpayWebhookHandler: RequestHandler = async (req, res, next) => {
   try {
-    // Verify webhook signature
-    const shasum = crypto.createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET || '');
-    shasum.update(JSON.stringify(req.body));
-    const digest = shasum.digest('hex');
-
-    if (digest !== req.headers['x-razorpay-signature']) {
-      console.error('Invalid webhook signature');
-      res.status(400).json({ error: 'Invalid signature' });
-      return;
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      logger.error('RAZORPAY_WEBHOOK_SECRET is not configured');
+      throw new InternalServerError('Webhook secret not configured');
     }
 
-    const { event, payload } = req.body;
-    console.log('Webhook received:', event, payload);
+    // Verify webhook signature
+    // req.body is a Buffer when using express.raw()
+    const rawBody = req.body as Buffer;
+    const shasum = crypto.createHmac('sha256', webhookSecret);
+    shasum.update(rawBody);
+    const digest = shasum.digest('hex');
+    
+    // Parse the body for processing (after signature verification)
+    const body = JSON.parse(rawBody.toString('utf-8'));
+
+    const signature = req.headers['x-razorpay-signature'] as string;
+    if (digest !== signature) {
+      logger.error('Invalid webhook signature');
+      throw new ValidationError('Invalid webhook signature');
+    }
+
+    const { event, payload } = body;
+    logger.info('Webhook received:', { event, payloadId: payload?.payment?.entity?.id });
 
     if (event === 'payment.captured') {
       const { payment } = payload;
       const orderId = payment.entity.order_id;
 
-      // Update the purchased pass
-      await prisma.purchasedPass.update({
+      // Find and update the purchased pass
+      const purchasedPass = await prisma.purchasedPass.findUnique({
         where: { paymentIntentId: orderId },
-        data: {
-          paymentStatus: 'succeeded',
-          isActive: true
-        }
+        include: { passType: true },
       });
+
+      if (purchasedPass) {
+        // Generate QR code value
+        const qrCodeValue = generateQRCodeValue(purchasedPass.id);
+
+        await prisma.purchasedPass.update({
+          where: { paymentIntentId: orderId },
+          data: {
+            paymentStatus: 'succeeded',
+            isActive: true,
+            qrCodeValue,
+          },
+        });
+
+        logger.info('Payment webhook processed successfully:', { orderId, passId: purchasedPass.id });
+      } else {
+        logger.warn('Purchased pass not found for order:', orderId);
+      }
     }
 
     res.json({ status: 'ok' });
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(400).json({ error: 'Webhook error' });
+    next(error);
   }
 };
 
-const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res) => {
+const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res, next) => {
   try {
     const { passId } = req.params;
-    const userId = req.headers['x-user-id'] as string;
-
+    const userId = req.userId;
+    
     if (!userId) {
-      res.status(401).json({ error: 'User ID is required' });
-      return;
+      throw new UnauthorizedError('User ID is required');
     }
 
     const purchasedPass = await prisma.purchasedPass.findUnique({
       where: { id: passId },
-      include: { passType: true }
+      include: { passType: true },
     });
 
     if (!purchasedPass) {
-      res.status(404).json({ error: 'Pass not found' });
-      return;
+      throw new NotFoundError('Purchased pass', passId);
     }
 
     // Verify the pass belongs to the requesting user
     if (purchasedPass.userId !== userId) {
-      res.status(403).json({ error: 'Unauthorized access to pass' });
-      return;
+      throw new ForbiddenError('Unauthorized access to pass');
     }
 
     res.json({
@@ -212,68 +195,44 @@ const getPassStatusHandler: RequestHandler<{ passId: string }> = async (req, res
       qrCodeValue: purchasedPass.paymentStatus === 'succeeded' ? purchasedPass.qrCodeValue : undefined,
       passType: purchasedPass.passType,
       expiryDate: purchasedPass.expiryDate,
-      isActive: purchasedPass.isActive
+      isActive: purchasedPass.isActive,
     });
   } catch (error) {
-    console.error('Error getting pass status:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-const confirmPaymentHandler: RequestHandler = async (req, res): Promise<void> => {
-  const { passId, paymentId } = req.body;
-
-  if (!passId || !paymentId) {
-    res.status(400).json({
-      error: 'Missing required fields: passId and paymentId'
-    });
-    return;
-  }
-
+const confirmPaymentHandler: RequestHandler = async (req, res, next) => {
   try {
-    // Find the purchased pass
-    const purchasedPass = await prisma.purchasedPass.findUnique({
-      where: { id: passId },
-      include: { passType: true }
-    });
+    const { passId, paymentId, deviceId } = req.body;
+    const userId = req.userId;
 
-    if (!purchasedPass) {
-      res.status(404).json({
-        error: 'Pass not found'
-      });
-      return;
+    if (!userId) {
+      throw new UnauthorizedError('User ID is required');
     }
 
-    // Generate new QR code value with backend URL
-    const qrCodeValue = `https://gymapp-coral.vercel.app/api/validate?pass_id=${purchasedPass.id}`;
-    console.log('Generated QR code URL for confirmed pass:', qrCodeValue);
+    // Pass userId to service for ownership verification
+    const result = await confirmPaymentService(passId, paymentId, userId, deviceId);
 
-    // Update the pass with payment details
-    await prisma.purchasedPass.update({
-      where: { id: passId },
-      data: {
-        paymentStatus: 'succeeded',
-        paymentIntentId: paymentId,
-        isActive: true,
-        qrCodeValue
-      }
+    res.json({
+      success: true,
+      pass: {
+        id: result.id,
+        qrCode: result.qrCodeValue,
+        expiry: result.expiryDate,
+      },
     });
-
-    res.json({ success: true });
   } catch (error) {
-    console.error('Error confirming payment:', error);
-    res.status(500).json({
-      error: 'Failed to confirm payment'
-    });
+    next(error);
   }
 };
 
-const getActivePassesHandler: RequestHandler = async (req, res) => {
+const getActivePassesHandler: RequestHandler = async (req, res, next) => {
   try {
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.userId;
+    
     if (!userId) {
-      res.status(401).json({ error: 'User ID is required' });
-      return;
+      throw new UnauthorizedError('User ID is required');
     }
 
     const activePasses = await prisma.purchasedPass.findMany({
@@ -282,150 +241,93 @@ const getActivePassesHandler: RequestHandler = async (req, res) => {
         isActive: true,
         paymentStatus: 'succeeded',
         expiryDate: {
-          gt: new Date() // Only return passes that haven't expired
-        }
+          gt: new Date(), // Only return passes that haven't expired
+        },
       },
       include: {
         passType: {
           select: {
             name: true,
-            duration: true
-          }
-        }
+            duration: true,
+          },
+        },
       },
       orderBy: {
-        purchaseDate: 'desc'
-      }
+        purchaseDate: 'desc',
+      },
     });
 
     res.json(activePasses);
   } catch (error) {
-    console.error('Error fetching active passes:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-const validateQrCodeHandler: RequestHandler = async (req, res) => {
+const validateQrCodeHandler: RequestHandler = async (req, res, next) => {
   try {
     const { pass_id } = req.query;
-    console.log('Validating pass:', pass_id);
 
     if (!pass_id || typeof pass_id !== 'string') {
-      console.log('Invalid pass ID format:', pass_id);
-      res.status(400).json({
-        valid: false,
-        error: 'Invalid pass ID format',
-        details: null
-      });
-      return;
+      throw new ValidationError('Invalid pass ID format');
     }
 
     // Find the purchased pass
     const purchasedPass = await prisma.purchasedPass.findUnique({
       where: { id: pass_id },
       include: {
-        passType: true
-      }
+        passType: true,
+      },
     });
 
     if (!purchasedPass) {
-      console.log('Pass not found:', pass_id);
-      res.status(404).json({
-        valid: false,
-        error: 'Pass not found',
-        details: null
-      });
-      return;
+      throw new NotFoundError('Purchased pass', pass_id);
     }
 
     // Check if pass is active and not expired
     const now = new Date();
     const expiryDate = new Date(purchasedPass.expiryDate);
-    const isValid = purchasedPass.isActive &&
+    const isValid =
+      purchasedPass.isActive &&
       purchasedPass.paymentStatus === 'succeeded' &&
       expiryDate > now;
 
     // Calculate remaining time
-    const remainingHours = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60)));
-    const remainingMinutes = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60)));
+    const remainingMs = expiryDate.getTime() - now.getTime();
+    const remainingHours = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60)));
+    const remainingMinutes = Math.max(0, Math.ceil(remainingMs / (1000 * 60)));
 
-    console.log('Pass validation result:', {
+    logger.info('Pass validation result:', {
       passId: pass_id,
       isValid,
       remainingHours,
-      status: purchasedPass.paymentStatus
+      status: purchasedPass.paymentStatus,
     });
 
     res.json({
       valid: isValid,
       error: isValid ? null : 'Pass is invalid or expired',
-      details: isValid ? {
-        passType: purchasedPass.passType.name,
-        purchaseDate: purchasedPass.purchaseDate,
-        expiryDate: purchasedPass.expiryDate,
-        remainingHours,
-        remainingMinutes,
-        amount: (purchasedPass as any).amount,
-        currency: (purchasedPass as any).currency,
-        status: purchasedPass.paymentStatus,
-        userId: purchasedPass.userId
-      } : null
+      details: isValid
+        ? {
+            passType: purchasedPass.passType.name,
+            purchaseDate: purchasedPass.purchaseDate,
+            expiryDate: purchasedPass.expiryDate,
+            remainingHours,
+            remainingMinutes,
+            amount: purchasedPass.amount?.toString() || null,
+            currency: purchasedPass.currency,
+            status: purchasedPass.paymentStatus,
+            userId: purchasedPass.userId,
+          }
+        : null,
     });
   } catch (error) {
-    console.error('Error validating QR code:', error);
-    res.status(500).json({
-      valid: false,
-      error: 'Internal server error',
-      details: null
-    });
+    next(error);
   }
 };
 
-// Add rate limiting middleware
-const rateLimit = new Map<string, { count: number; resetTime: number }>();
-
-const rateLimitMiddleware: RequestHandler = (req, res, next) => {
-  const ip = req.ip || 'unknown';
-  const now = Date.now();
-  const limit = 10; // 10 requests
-  const windowMs = 60000; // 1 minute
-
-  if (!rateLimit.has(ip)) {
-    rateLimit.set(ip, { count: 1, resetTime: now + windowMs });
-  } else {
-    const data = rateLimit.get(ip)!;
-    if (now > data.resetTime) {
-      data.count = 1;
-      data.resetTime = now + windowMs;
-    } else if (data.count >= limit) {
-      res.status(429).json({ error: 'Too many requests' });
-      return;
-    } else {
-      data.count++;
-    }
-  }
-
-  next();
-};
-
-// Upsert user endpoint
-const upsertUserHandler: RequestHandler = async (req, res) => {
-  console.log('Received upsert user request:', {
-    method: req.method,
-    path: req.path,
-    headers: req.headers,
-    body: req.body
-  });
-
+const upsertUserHandler: RequestHandler = async (req, res, next) => {
   try {
     const { id, email, name, phoneNumber } = req.body;
-    console.log('Upserting user with data:', { id, email, name, phoneNumber });
-
-    if (!id) {
-      console.log('Missing user ID in request');
-      res.status(400).json({ error: 'User ID is required' });
-      return;
-    }
 
     const user = await prisma.user.upsert({
       where: { id },
@@ -433,45 +335,53 @@ const upsertUserHandler: RequestHandler = async (req, res) => {
         email: email || undefined,
         name: name || undefined,
         phoneNumber: phoneNumber || undefined,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       create: {
         id,
         email: email || null,
         name: name || null,
-        phoneNumber: phoneNumber || null
-      }
+        phoneNumber: phoneNumber || null,
+      },
     });
 
-    console.log('Successfully upserted user:', user);
+    logger.info('User upserted successfully:', { userId: user.id });
     res.json(user);
   } catch (error) {
-    console.error('Error upserting user:', error);
-    if (error instanceof Error) {
-      console.error('Error details:', error.message);
-      if (error.stack) {
-        console.error('Error stack:', error.stack);
-      }
-    }
-    res.status(500).json({ error: 'Internal server error' });
+    next(error);
   }
 };
 
-// Mount all routes after handlers are defined
+// Webhook route (raw body for signature verification)
+// IMPORTANT: This route must be defined BEFORE express.json() middleware
+// to preserve the raw body for HMAC signature verification
+app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
+
+// Apply JSON parsing middleware to all other routes (after webhook route)
+app.use(express.json());
+
+// Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ message: 'Hello, world!' });
+  res.json({ message: 'GymLogic API', status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/gym/:qrIdentifier', getGymHandler);
-app.post('/api/passes/purchase', purchasePassHandler);
-app.post('/api/payments/confirm', confirmPaymentHandler);
-app.post('/api/webhook', express.raw({ type: 'application/json' }), razorpayWebhookHandler);
-app.get('/api/passes/:passId/status', getPassStatusHandler);
-app.get('/api/passes/active',rateLimitMiddleware, getActivePassesHandler);
-app.get('/api/validate', rateLimitMiddleware, validateQrCodeHandler);
-app.post('/api/users/me', upsertUserHandler);
+// Public routes
+app.get('/api/gym/:qrIdentifier', validate(gymValidators.getGymDetails), getGymHandler);
+app.get('/api/validate', validate(passValidators.validateQR), validateQrCodeHandler);
+
+// Protected routes (require authentication)
+// IMPORTANT: Specific routes must be defined before parameterized routes to prevent incorrect matching
+app.post('/api/passes/purchase', requireAuth, validate(passValidators.purchase), purchasePassHandler);
+app.post('/api/payments/confirm', requireAuth, validate(passValidators.confirmPayment), confirmPaymentHandler);
+app.get('/api/passes/active', requireAuth, getActivePassesHandler); // Must be before /api/passes/:passId/status
+app.get('/api/passes/:passId/status', requireAuth, validate(passValidators.getStatus), getPassStatusHandler);
+app.post('/api/users/me', validate(userValidators.upsert), upsertUserHandler);
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Start server
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Server running on port ${port}`);
+  logger.info(`Server running on port ${port}`);
+  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

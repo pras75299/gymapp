@@ -1,6 +1,7 @@
 import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { randomUUID } from "expo-crypto";
+import { logger } from "../src/utils/logger";
 
 interface DeviceIdInitializerProps {
     children: React.ReactNode;
@@ -13,11 +14,11 @@ const initializeDeviceId = async () => {
         if (!deviceId) {
             deviceId = randomUUID();
             await AsyncStorage.setItem("deviceId", deviceId);
-            console.log("Generated new device ID:", deviceId);
+            logger.info("Generated new device ID", { deviceId });
         }
         return deviceId;
     } catch (error) {
-        console.error("Error initializing device ID:", error);
+        logger.error("Error initializing device ID", error);
         return null;
     }
 };

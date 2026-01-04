@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { gymApi } from '../../src/api/gymApi';
+import { logger } from '../../src/utils/logger';
 
 export default function ValidateQrScreen() {
   const [qrCode, setQrCode] = useState('');
@@ -25,7 +26,7 @@ export default function ValidateQrScreen() {
       setResult(response);
     } catch (err) {
       setError('Failed to validate QR code');
-      console.error('Validation error:', err);
+      logger.error('Validation error', err);
     } finally {
       setLoading(false);
     }

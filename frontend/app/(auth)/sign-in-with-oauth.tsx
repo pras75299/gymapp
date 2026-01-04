@@ -13,6 +13,7 @@ import { useAuth } from "../../src/contexts/AuthContext";
 import { useOAuth } from "@clerk/clerk-expo";
 import { useWarmUpBrowser } from "../../src/hooks/useWarmUpBrowser";
 import { Ionicons } from "@expo/vector-icons";
+import { logger } from "../../src/utils/logger";
 
 export default function SignInWithOAuthScreen() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function SignInWithOAuthScreen() {
             router.replace("/sign-in");
           }
         } catch (err) {
-          console.error("OAuth error:", err);
+          logger.error("OAuth error", err);
           router.replace("/sign-in");
         } finally {
           setIsLoading(false);
@@ -49,7 +50,7 @@ export default function SignInWithOAuthScreen() {
     };
 
     handleOAuthCallback();
-  }, [searchParams]);
+  }, [searchParams, startOAuthFlow]);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -71,7 +72,7 @@ export default function SignInWithOAuthScreen() {
         router.replace("/");
       }
     } catch (err) {
-      console.error("OAuth error:", err);
+      logger.error("OAuth error", err);
     } finally {
       setIsLoading(false);
     }

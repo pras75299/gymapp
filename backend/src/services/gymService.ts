@@ -1,9 +1,5 @@
-import { PrismaClient, Gym, PassType } from '@prisma/client';
-
-// It's generally better to instantiate PrismaClient once and reuse it
-// or use dependency injection. For simplicity in MVP, we might instantiate it here
-// or pass it from the controller. Let's instantiate it here for now.
-const prisma = new PrismaClient();
+import { prisma } from '../utils/prisma';
+import { logger } from '../utils/logger';
 
 /**
  * Finds a gym by its unique QR identifier and includes its available pass types.
@@ -21,7 +17,7 @@ export const findGymByQrIdentifier = async (qrIdentifier: string) => {
 
         return gym;
     } catch (error) {
-        console.error('Database error while fetching gym:', error);
+        logger.error('Database error while fetching gym:', error);
         throw new Error('Failed to fetch gym details from database');
     }
 }; 

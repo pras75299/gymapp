@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth as useClerkAuth, useUser } from "@clerk/clerk-expo";
 import { gymApi } from "../api/gymApi";
+import { logger } from "../utils/logger";
 
 interface AuthContextType {
   isSignedIn: boolean;
@@ -36,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             phoneNumber: user?.primaryPhoneNumber?.phoneNumber || undefined,
           });
         } catch (error) {
-          console.error("Error upserting user:", error);
+          logger.error("Error upserting user", error);
         }
       }
       setIsLoading(false);

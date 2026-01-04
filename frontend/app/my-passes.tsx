@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -16,6 +16,8 @@ import { PurchasedPass } from "../src/types";
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
 import { useAuth } from "../src/contexts/AuthContext";
+import { PASSES_POLLING_INTERVAL, ERROR_MESSAGES } from "../src/constants/app";
+import { logger } from "../src/utils/logger";
 
 export default function MyPassesScreen() {
   const { userId } = useAuth();
@@ -37,9 +39,9 @@ export default function MyPassesScreen() {
         "paymentCurrency",
         "activePasses",
       ]);
-      console.log("[MyPasses] Cleared all pass data from AsyncStorage");
+      logger.debug("Cleared all pass data from AsyncStorage");
     } catch (error) {
-      console.error("[MyPasses] Error clearing pass data:", error);
+      logger.error("Error clearing pass data", error);
     }
   };
 
@@ -49,18 +51,20 @@ export default function MyPassesScreen() {
       setError(null);
 
       const deviceId = await AsyncStorage.getItem("deviceId");
-      if (deviceId && userId) {
-        const activePasses = await gymApi.getActivePasses(deviceId, userId);
-        setActivePasses(activePasses);
+      if (!deviceId || !userId) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
       }
 
+      const fetchedPasses = await gymApi.getActivePasses(deviceId, userId);
+      setActivePasses(fetchedPasses);
+
       // If no passes are found in the database but we have data in AsyncStorage
-      if (activePasses.length === 0) {
+      if (fetchedPasses.length === 0) {
         const storedPasses = await AsyncStorage.getItem("activePasses");
         if (storedPasses) {
-          console.log(
-            "[MyPasses] Found stale pass data in AsyncStorage, clearing..."
-          );
+          logger.debug("Found stale pass data in AsyncStorage, clearing...");
           await clearPassData();
         }
       }
@@ -68,7 +72,7 @@ export default function MyPassesScreen() {
       // Clear any pending payment data after successful fetch
       const lastPassId = await AsyncStorage.getItem("lastPurchasedPassId");
       if (lastPassId) {
-        const newPass = activePasses.find((pass) => pass.id === lastPassId);
+        const newPass = fetchedPasses.find((pass) => pass.id === lastPassId);
         if (newPass && newPass.paymentStatus === "succeeded") {
           await AsyncStorage.multiRemove([
             "lastPurchasedPassId",
@@ -78,8 +82,8 @@ export default function MyPassesScreen() {
         }
       }
     } catch (err) {
-      console.error("Error fetching passes:", err);
-      setError("Failed to load passes. Please try again.");
+      logger.error("Error fetching passes", err);
+      setError(ERROR_MESSAGES.FETCH_ACTIVE_PASSES_FAILED);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -87,17 +91,30 @@ export default function MyPassesScreen() {
     }
   }, [userId]);
 
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     fetchPasses();
-    // Poll for updates every 5 seconds until we have passes
-    const pollInterval = setInterval(() => {
-      if (activePasses.length === 0) {
-        fetchPasses();
-      }
-    }, 30000);
+    
+    // Poll for updates only if we have no passes and user is signed in
+    if (userId) {
+      pollIntervalRef.current = setInterval(() => {
+        // Only poll if we still have no passes
+        setActivePasses((currentPasses) => {
+          if (currentPasses.length === 0) {
+            fetchPasses();
+          }
+          return currentPasses;
+        });
+      }, PASSES_POLLING_INTERVAL);
+    }
 
-    return () => clearInterval(pollInterval);
-  }, [fetchPasses]);
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [fetchPasses, userId]);
 
   useEffect(() => {
     const loadPaymentDetails = async () => {

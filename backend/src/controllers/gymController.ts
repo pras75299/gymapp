@@ -32,7 +32,7 @@ export const getGymDetails = async (req: Request, res: Response) => {
 
         res.json(gymWithSerializedPasses);
     } catch (error) {
-        console.error(`Error fetching gym details for ${qrIdentifier}:`, error);
+        logger.error(`Error fetching gym details for ${qrIdentifier}:`, error);
         res.status(500).json({ message: 'Internal server error while fetching gym details' });
     }
 };

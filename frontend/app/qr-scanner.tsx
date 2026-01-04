@@ -7,6 +7,8 @@ import {
 } from "expo-camera";
 import { useRouter } from "expo-router";
 import { gymApi } from "../src/api/gymApi";
+import { QR_CODE_VALIDATION_DOMAIN, ERROR_MESSAGES } from "../src/constants/app";
+import { logger } from "../src/utils/logger";
 
 export default function QRScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -40,13 +42,18 @@ export default function QRScannerScreen() {
     setResult(null);
 
     try {
-      // Check if it's a gym QR code (simple identifier)
-      if (!result.data.includes('http')) {
-        // It's a gym QR code, fetch gym details
-        const gym = await gymApi.getGymByQrIdentifier(result.data);
+      const qrData = result.data.trim();
+      
+      // Check if it's a URL
+      const isUrl = qrData.startsWith('http://') || qrData.startsWith('https://');
+      
+      if (!isUrl) {
+        // It's likely a gym QR code (simple identifier), fetch gym details
+        logger.debug('Scanning gym QR code', { qrIdentifier: qrData });
+        const gym = await gymApi.getGymByQrIdentifier(qrData);
         router.replace({
           pathname: "/pass-selection",
-          params: { qrIdentifier: result.data }
+          params: { qrIdentifier: qrData }
         });
         return;
       }
@@ -54,17 +61,19 @@ export default function QRScannerScreen() {
       // Validate URL format
       let url: URL;
       try {
-        url = new URL(result.data);
+        url = new URL(qrData);
       } catch (err) {
-        throw new Error('Invalid QR code format');
+        throw new Error(ERROR_MESSAGES.INVALID_QR_FORMAT);
       }
 
-      // Check if URL is from our backend
-      if (!url.origin.includes('gymapp-coral.vercel.app')) {
-        throw new Error('Invalid QR code source');
+      // Check if URL is from our backend (using configurable domain)
+      if (!url.origin.includes(QR_CODE_VALIDATION_DOMAIN)) {
+        logger.warn('QR code from unknown source', { origin: url.origin });
+        throw new Error(ERROR_MESSAGES.INVALID_QR_SOURCE);
       }
 
       // It's a pass QR code, validate it
+      logger.debug('Validating pass QR code', { url: url.toString() });
       const response = await fetch(url.toString());
       const data = await response.json();
 
@@ -74,8 +83,9 @@ export default function QRScannerScreen() {
 
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process QR code');
-      console.error('Validation error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process QR code';
+      setError(errorMessage);
+      logger.error('QR code validation error', err);
     } finally {
       setLoading(false);
     }
