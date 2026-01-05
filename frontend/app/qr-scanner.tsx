@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from "react-native";
 import {
   CameraView,
@@ -17,6 +17,7 @@ export default function QRScannerScreen() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -31,11 +32,14 @@ export default function QRScannerScreen() {
     setScanned(false);
     setError(null);
     setResult(null);
+    isProcessingRef.current = false;
   }, []);
 
   const handleBarCodeScanned = async (result: BarcodeScanningResult) => {
-    if (scanned) return;
+    // Prevent multiple simultaneous scans using ref
+    if (scanned || isProcessingRef.current) return;
     
+    isProcessingRef.current = true;
     setScanned(true);
     setLoading(true);
     setError(null);
@@ -50,12 +54,18 @@ export default function QRScannerScreen() {
       if (!isUrl) {
         // It's likely a gym QR code (simple identifier), fetch gym details
         logger.debug('Scanning gym QR code', { qrIdentifier: qrData });
-        const gym = await gymApi.getGymByQrIdentifier(qrData);
-        router.replace({
-          pathname: "/pass-selection",
-          params: { qrIdentifier: qrData }
-        });
-        return;
+        try {
+          const gym = await gymApi.getGymByQrIdentifier(qrData);
+          // Navigate to pass selection with gym data
+          router.replace({
+            pathname: "/pass-selection",
+            params: { qrIdentifier: qrData }
+          });
+          return;
+        } catch (gymError) {
+          // Re-throw to be caught by outer catch block
+          throw gymError;
+        }
       }
 
       // Validate URL format
@@ -85,7 +95,24 @@ export default function QRScannerScreen() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to process QR code';
       setError(errorMessage);
-      logger.error('QR code validation error', err);
+      
+      // Log timeout and network errors as warnings, other errors as errors
+      if (err instanceof Error) {
+        const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('Connection timeout');
+        const isNetworkError = errorMessage.includes('Unable to connect') || errorMessage.includes('network');
+        
+        if (isTimeout || isNetworkError) {
+          logger.warn('QR code validation timeout/network error', err);
+        } else {
+          logger.error('QR code validation error', err);
+        }
+      } else {
+        logger.error('QR code validation error', err);
+      }
+      
+      // Reset scanned state to allow retry
+      setScanned(false);
+      isProcessingRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -141,6 +168,7 @@ export default function QRScannerScreen() {
             onPress={() => {
               setScanned(false);
               setError(null);
+              isProcessingRef.current = false;
             }}
           >
             <Text style={styles.buttonText}>Scan Again</Text>
