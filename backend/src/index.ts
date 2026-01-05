@@ -32,7 +32,29 @@ const port = parseInt(process.env.PORT || '8080', 10);
 const corsOptions = {
   origin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',')
-    : ['http://localhost:8081', 'http://localhost:8080'],
+    : (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Allow requests with no origin (like mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost and local network IPs for development
+        const allowedOrigins = [
+          'http://localhost:8081',
+          'http://localhost:8080',
+          'http://192.168.1.17:8081',
+          'http://192.168.1.17:8080',
+        ];
+        
+        // Also allow any 192.168.x.x IP for development
+        if (/^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
+          return callback(null, true);
+        }
+        
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
   credentials: true,
