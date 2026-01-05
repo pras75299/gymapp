@@ -42,7 +42,20 @@ export default function PassSelectionScreen() {
         }
       } catch (err) {
         logger.error("Error fetching passes", err);
-        setError(ERROR_MESSAGES.FETCH_GYM_FAILED);
+        if (err instanceof Error) {
+          // Show user-friendly error messages
+          if (err.message.includes('timeout') || err.message.includes('Connection timeout')) {
+            setError('Connection timeout. Please check your internet connection and try again.');
+          } else if (err.message.includes('Unable to connect') || err.message.includes('network')) {
+            setError('Unable to connect to server. Please check your internet connection.');
+          } else if (err.message.includes('not found') || err.message.includes('Gym not found')) {
+            setError('Gym not found. Please scan a valid gym QR code.');
+          } else {
+            setError(err.message || ERROR_MESSAGES.FETCH_GYM_FAILED);
+          }
+        } else {
+          setError(ERROR_MESSAGES.FETCH_GYM_FAILED);
+        }
       } finally {
         setLoading(false);
       }
