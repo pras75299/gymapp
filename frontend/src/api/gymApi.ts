@@ -82,7 +82,20 @@ apiClient.interceptors.response.use(
             message: error.message,
             response: error.response?.data
         };
-        logger.error('API request failed', errorInfo);
+        
+        // Handle timeout errors for non-critical endpoints at warning level
+        const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout');
+        const isNonCriticalEndpoint = error.config?.url?.includes('/users/me');
+        const isGymEndpoint = error.config?.url?.includes('/gym/');
+        
+        if (isTimeout && (isNonCriticalEndpoint || isGymEndpoint)) {
+            // Log timeout for non-critical endpoints as warning
+            logger.warn('API request timeout (non-critical)', errorInfo);
+        } else {
+            // Log other errors at error level
+            logger.error('API request failed', errorInfo);
+        }
+        
         return Promise.reject(error);
     }
 );
@@ -131,6 +144,12 @@ export class ApiError extends Error {
     constructor(message: string) {
         super(message);
         this.name = "ApiError";
+        // Maintains proper stack trace for where our error was thrown (only available on V8)
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, ApiError);
+        }
+        // Set the prototype explicitly for proper instanceof checks
+        Object.setPrototypeOf(this, ApiError.prototype);
     }
 }
 
@@ -145,12 +164,24 @@ export const gymApi = {
 
         logger.debug(`Fetching gym for QR: ${qrIdentifier}`);
         try {
-            const response = await apiClient.get(`/gym/${qrIdentifier}`);
+            const response = await apiClient.get(`/gym/${qrIdentifier}`, {
+                timeout: 8000, // 8 seconds timeout
+            });
             logger.debug('Gym data received', { gymId: response.data?.id });
             return response.data;
         } catch (error) {
-            logger.error('Error fetching gym', error);
             if (axios.isAxiosError(error)) {
+                // Handle timeout errors
+                if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                    logger.warn('Timeout fetching gym - backend may be unavailable');
+                    throw new ApiError('Connection timeout. Please check your internet connection and try again.');
+                }
+                // Handle network errors
+                if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'NETWORK_ERROR') {
+                    logger.warn('Network error fetching gym', error.code);
+                    throw new ApiError('Unable to connect to server. Please check your internet connection.');
+                }
+                // Handle HTTP status errors
                 const status = error.response?.status;
                 if (status === 404) {
                     throw new ApiError('Gym not found');
@@ -158,6 +189,7 @@ export const gymApi = {
                     throw new ApiError('Unauthorized access');
                 }
             }
+            logger.error('Error fetching gym', error);
             throw new ApiError(ERROR_MESSAGES.FETCH_GYM_FAILED);
         }
     },
@@ -288,17 +320,29 @@ export const gymApi = {
                 params: { deviceId },
                 headers: {
                     'x-user-id': userId
-                }
+                },
+                timeout: 8000, // 8 seconds timeout
             });
             logger.debug('Active passes received', { count: response.data?.length || 0 });
-            return response.data;
+            return response.data || [];
         } catch (error) {
-            logger.error('Error fetching active passes', error);
             if (axios.isAxiosError(error)) {
+                // Handle timeout errors gracefully
+                if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                    logger.warn('Timeout fetching active passes - backend may be unavailable');
+                    throw new ApiError('Connection timeout. Please check your internet connection and try again.');
+                }
+                // Handle authentication errors
                 if (error.response?.status === 401 || error.response?.status === 403) {
                     throw new ApiError('Please sign in to view your passes');
                 }
+                // Handle network errors
+                if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'NETWORK_ERROR') {
+                    logger.warn('Network error fetching active passes', error.code);
+                    throw new ApiError('Unable to connect to server. Please check your internet connection.');
+                }
             }
+            logger.error('Error fetching active passes', error);
             throw new ApiError(ERROR_MESSAGES.FETCH_ACTIVE_PASSES_FAILED);
         }
     },
@@ -344,15 +388,24 @@ export const gymApi = {
 
         logger.debug('Upserting user', { userId: userData.id });
         try {
-            const response = await apiClient.post('/users/me', userData);
+            // Use a shorter timeout for user upsert since it's not critical
+            const response = await apiClient.post('/users/me', userData, {
+                timeout: 5000, // 5 seconds instead of 10
+            });
             logger.debug('User upserted successfully', { userId: response.data?.id });
             return response.data;
         } catch (error) {
-            logger.error('Error upserting user', error);
-            // Don't throw error for user upsert - it's not critical for app functionality
-            // Just log it and return the original userData
-            if (axios.isAxiosError(error) && error.response?.status !== 401) {
-                // Only log non-auth errors
+            // Handle timeout and network errors silently - they're not critical
+            if (axios.isAxiosError(error)) {
+                if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                    logger.warn('User upsert timeout - backend may be unavailable, continuing without sync');
+                } else if (error.response?.status === 401) {
+                    logger.warn('User upsert unauthorized - user may not be authenticated yet');
+                } else {
+                    logger.error('Error upserting user', error);
+                }
+            } else {
+                logger.error('Error upserting user', error);
             }
             // Return userData as fallback instead of throwing
             return userData;
