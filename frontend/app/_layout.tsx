@@ -76,13 +76,13 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="sign-in"
+                name="(auth)/sign-in"
                 options={{
                   title: "Sign In",
                 }}
               />
               <Stack.Screen
-                name="sign-in-with-oauth"
+                name="(auth)/sign-in-with-oauth"
                 options={{
                   title: "Sign In with Google",
                 }}
