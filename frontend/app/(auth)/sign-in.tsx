@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
-import { useSignIn, useUser } from "@clerk/clerk-expo";
+import { useSignIn, useUser, useClerk } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../../src/api/gymApi";
