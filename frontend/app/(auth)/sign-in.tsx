@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   TouchableOpacity,
   StatusBar,
   TextInput,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
@@ -18,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../../src/api/gymApi";
 import { ERROR_MESSAGES, USER_ERROR_MESSAGES } from "../../src/constants/app";
 import { logger } from "../../src/utils/logger";
+import { colors, radius, space, type, layout } from "../../src/theme";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -29,6 +32,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -41,11 +45,8 @@ export default function SignInScreen() {
       if (completeSignIn?.createdSessionId) {
         await setActive?.({ session: completeSignIn.createdSessionId });
 
-        // Wait for auth state to be ready before proceeding
-        // Use a small delay to ensure Clerk has updated the session
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Check for stored pass ID and redirect path
         const [storedPassId, redirectPath] = await AsyncStorage.multiGet([
           "selectedPassId",
           "redirectAfterAuth",
@@ -53,34 +54,23 @@ export default function SignInScreen() {
 
         if (storedPassId[1]) {
           try {
-            // Clear the stored values immediately to prevent race conditions
             await AsyncStorage.multiRemove([
               "selectedPassId",
               "redirectAfterAuth",
             ]);
 
-            // Get userId after sign-in
-            // After setActive, Clerk updates the session but hook values (userId, user) are captured at render time
-            // We cannot re-read hook values in async functions - they remain stale
-            // Solution: Use Clerk's client API to get the current user after setActive
             let currentUserId: string | null = null;
-            
-            // After setActive, wait a moment for Clerk to update the session
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Get userId from Clerk's client - this accesses the current session state
-            // The clerk object from useClerk() provides access to the current user
+
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
             if (clerk.user?.id) {
               currentUserId = clerk.user.id;
             } else {
-              // If not available immediately, wait a bit more and try again
-              // Clerk updates the client object reactively after setActive
               let attempts = 0;
               const maxAttempts = 5;
-              
+
               while (!currentUserId && attempts < maxAttempts) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                // Check clerk.user which updates after setActive
+                await new Promise((resolve) => setTimeout(resolve, 200));
                 if (clerk.user?.id) {
                   currentUserId = clerk.user.id;
                   break;
@@ -90,7 +80,7 @@ export default function SignInScreen() {
             }
 
             if (!currentUserId) {
-              logger.error('Unable to get userId after sign-in');
+              logger.error("Unable to get userId after sign-in");
               throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
             }
 
@@ -99,8 +89,9 @@ export default function SignInScreen() {
               throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
             }
 
-            // Proceed with payment flow
-            logger.info('Proceeding with payment flow after sign-in', { passId: storedPassId[1] });
+            logger.info("Proceeding with payment flow after sign-in", {
+              passId: storedPassId[1],
+            });
             const order = await gymApi.purchasePass(
               storedPassId[1],
               currentUserId,
@@ -119,15 +110,11 @@ export default function SignInScreen() {
             });
           } catch (paymentError) {
             logger.error("Payment process error after sign-in", paymentError);
-            // Show error to user and redirect to home
-            Alert.alert(
-              "Payment Error",
-              USER_ERROR_MESSAGES.PAYMENT_ERROR,
-              [{ text: "OK", onPress: () => router.replace("/") }]
-            );
+            Alert.alert("Payment Error", USER_ERROR_MESSAGES.PAYMENT_ERROR, [
+              { text: "OK", onPress: () => router.replace("/") },
+            ]);
           }
         } else {
-          // No stored pass ID, redirect to home
           router.replace("/");
         }
       }
@@ -141,177 +128,260 @@ export default function SignInScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={styles.loadingScreen}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.loadingText}>Signing you in…</Text>
       </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/background-gym.png")}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
+    <View style={styles.bg}>
       <StatusBar barStyle="light-content" />
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>
-              Sign in to access your gym passes
-            </Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backChip}
+              onPress={() => router.replace("/")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chevron-back" size={18} color={colors.text} />
+              <Text style={styles.backChipText}>Home</Text>
+            </TouchableOpacity>
+            <Text style={styles.unit}>VEER · GYM</Text>
           </View>
 
+          <Text style={styles.eyebrow}>Member access</Text>
+          <Text style={styles.title}>
+            Welcome{"\n"}
+            <Text style={styles.titleAccent}>back.</Text>
+          </Text>
+          <Text style={styles.lede}>Sign in to access your gym passes.</Text>
+
           <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="rgba(255, 255, 255, 0.5)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.textDim}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordWrap}>
+                <TextInput
+                  style={[styles.input, { flex: 1, paddingRight: 44 }]}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textDim}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword((v) => !v)}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
             <TouchableOpacity
-              style={styles.signInButton}
+              style={styles.primaryBtn}
               onPress={handleSignIn}
+              activeOpacity={0.85}
             >
-              <Text style={styles.signInButtonText}>Sign In</Text>
+              <Text style={styles.primaryBtnText}>Sign in</Text>
+              <Ionicons
+                name="arrow-forward"
+                size={18}
+                color={colors.accentInk}
+              />
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
+              <Text style={styles.dividerText}>OR</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <TouchableOpacity
-              style={styles.googleButton}
+              style={styles.googleBtn}
               onPress={() => router.push("/sign-in-with-oauth")}
+              activeOpacity={0.85}
             >
-              <Ionicons name="logo-google" size={24} color="#fff" />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Ionicons name="logo-google" size={18} color={colors.text} />
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.replace("/")}
-          >
-            <Text style={styles.backButtonText}>Back to Home</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </ImageBackground>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By continuing you agree to our terms.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
-    flex: 1,
-    width: "100%",
+  bg: { flex: 1, backgroundColor: colors.bg },
+  scroll: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding,
+    paddingBottom: 60,
+    flexGrow: 1,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: space.xxl,
   },
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
+  backChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: space.sm,
+    paddingLeft: 4,
+    paddingRight: space.md,
   },
-  header: {
-    marginBottom: 40,
+  backChipText: {
+    ...type.label,
+    color: colors.text,
+    marginLeft: 4,
+    fontSize: 12,
   },
+  unit: { ...type.label, color: colors.textMuted },
+  eyebrow: { ...type.eyebrow, color: colors.accent, marginBottom: space.md },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 10,
+    ...type.display,
+    color: colors.text,
+    fontSize: 56,
+    lineHeight: 54,
+    marginBottom: space.md,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+  titleAccent: { color: colors.accent, fontStyle: "italic" },
+  lede: {
+    ...type.bodyMuted,
+    fontSize: 14,
+    marginBottom: space.xxl,
   },
-  form: {
-    width: "100%",
+  form: { width: "100%" },
+  inputGroup: { marginBottom: space.lg },
+  label: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 11,
+    marginBottom: space.sm,
   },
   input: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    color: "white",
-  },
-  signInButton: {
-    backgroundColor: "#4285F4",
-    borderRadius: 8,
-    padding: 15,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  signInButtonText: {
-    color: "white",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: 14,
+    color: colors.text,
     fontSize: 16,
-    fontWeight: "600",
+  },
+  passwordWrap: { position: "relative" },
+  passwordToggle: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorText: {
+    ...type.label,
+    color: colors.danger,
+    fontSize: 13,
+    marginBottom: space.md,
+  },
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    paddingHorizontal: space.xl,
+    borderRadius: radius.sm,
+    marginTop: space.sm,
+  },
+  primaryBtnText: {
+    ...type.label,
+    color: colors.accentInk,
+    fontSize: 14,
+    fontWeight: "800",
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 20,
+    marginVertical: space.xl,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: {
-    color: "rgba(255, 255, 255, 0.5)",
-    marginHorizontal: 10,
-    fontSize: 14,
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginHorizontal: space.md,
   },
-  googleButton: {
+  googleBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#4285F4",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 20,
-  },
-  googleButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
-  },
-  backButton: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    padding: 15,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  backButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    flex: 1,
     justifyContent: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingVertical: 16,
+    borderRadius: radius.sm,
+  },
+  googleBtnText: {
+    ...type.label,
+    color: colors.text,
+    fontSize: 13,
+  },
+  footer: { marginTop: space.xxl, alignItems: "center" },
+  footerText: {
+    ...type.label,
+    color: colors.textDim,
+    fontSize: 10,
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: colors.bg,
     alignItems: "center",
-    backgroundColor: "#000",
+    justifyContent: "center",
+  },
+  loadingText: {
+    ...type.bodyMuted,
+    marginTop: space.lg,
+    fontSize: 14,
   },
 });

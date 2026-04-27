@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import { useOAuth } from "@clerk/clerk-expo";
 import { useWarmUpBrowser } from "../../src/hooks/useWarmUpBrowser";
 import { Ionicons } from "@expo/vector-icons";
 import { logger } from "../../src/utils/logger";
+import { colors, radius, space, type, layout } from "../../src/theme";
 
 export default function SignInWithOAuthScreen() {
   const router = useRouter();
@@ -80,144 +80,165 @@ export default function SignInWithOAuthScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
+      <View style={styles.loadingScreen}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.loadingText}>Connecting to Google…</Text>
       </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require("../../assets/images/background-gym.png")}
-      style={styles.backgroundImage}
-      resizeMode="cover"
-    >
+    <View style={styles.bg}>
       <StatusBar barStyle="light-content" />
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>
-              Sign in to access your gym passes
-            </Text>
-          </View>
+      <View style={styles.scroll}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backChip}
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chevron-back" size={18} color={colors.text} />
+            <Text style={styles.backChipText}>Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.unit}>VEER · GYM</Text>
+        </View>
 
-          <View style={styles.form}>
-            <TouchableOpacity style={styles.googleButton} onPress={onPress}>
-              <Ionicons name="logo-google" size={24} color="#fff" />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
+        <Text style={styles.eyebrow}>Quick access</Text>
+        <Text style={styles.title}>
+          One{"\n"}
+          <Text style={styles.titleAccent}>tap.</Text>
+        </Text>
+        <Text style={styles.lede}>
+          Sign in with your Google account to access your gym passes.
+        </Text>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+        <View style={{ flex: 1 }} />
 
-            <TouchableOpacity
-              style={styles.emailButton}
-              onPress={() => router.push("/sign-in")}
-            >
-              <Text style={styles.emailButtonText}>Sign in with Email</Text>
-            </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={onPress}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="logo-google" size={18} color={colors.accentInk} />
+            <Text style={styles.primaryBtnText}>Continue with Google</Text>
+            <Ionicons
+              name="arrow-forward"
+              size={18}
+              color={colors.accentInk}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
           </View>
 
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
+            style={styles.secondaryBtn}
+            onPress={() => router.push("/sign-in")}
+            activeOpacity={0.85}
           >
-            <Text style={styles.backButtonText}>Back to Home</Text>
+            <Text style={styles.secondaryBtnText}>Sign in with email</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  bg: { flex: 1, backgroundColor: colors.bg },
+  scroll: {
     flex: 1,
-    width: "100%",
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding,
+    paddingBottom: 40,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-  },
-  header: {
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  form: {
-    width: "100%",
-  },
-  googleButton: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#4285F4",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 20,
+    justifyContent: "space-between",
+    marginBottom: space.xxl,
   },
-  googleButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
+  backChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: space.sm,
+    paddingLeft: 4,
+    paddingRight: space.md,
+  },
+  backChipText: {
+    ...type.label,
+    color: colors.text,
+    marginLeft: 4,
+    fontSize: 12,
+  },
+  unit: { ...type.label, color: colors.textMuted },
+  eyebrow: { ...type.eyebrow, color: colors.accent, marginBottom: space.md },
+  title: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 64,
+    lineHeight: 60,
+    marginBottom: space.md,
+  },
+  titleAccent: { color: colors.accent, fontStyle: "italic" },
+  lede: { ...type.bodyMuted, fontSize: 14, maxWidth: 320 },
+  actions: { width: "100%" },
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    paddingHorizontal: space.xl,
+    borderRadius: radius.sm,
+  },
+  primaryBtnText: {
+    ...type.label,
+    color: colors.accentInk,
+    fontSize: 14,
+    fontWeight: "800",
+    flex: 1,
+    marginLeft: space.md,
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 20,
+    marginVertical: space.lg,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: {
-    color: "rgba(255, 255, 255, 0.5)",
-    marginHorizontal: 10,
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginHorizontal: space.md,
+  },
+  secondaryBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingVertical: 16,
+    borderRadius: radius.sm,
+    alignItems: "center",
+  },
+  secondaryBtnText: {
+    ...type.label,
+    color: colors.text,
+    fontSize: 13,
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    ...type.bodyMuted,
+    marginTop: space.lg,
     fontSize: 14,
-  },
-  emailButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 8,
-    padding: 15,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  emailButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  backButton: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    padding: 15,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  backButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

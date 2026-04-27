@@ -5,7 +5,7 @@ import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { AuthProvider } from "../src/contexts/AuthContext";
 import Constants from "expo-constants";
 import { DeviceIdInitializer } from "../components/DeviceIdInitializer";
-import { UserProfileDropdown } from "../components/UserProfileDropdown";
+import { AppHeader } from "../components/AppHeader";
 import { logger } from "../src/utils/logger";
 
 // const tokenCache = {
@@ -38,10 +38,16 @@ export default function RootLayout() {
       <AuthProvider>
         <SafeAreaProvider>
           <DeviceIdInitializer>
-            <UserProfileDropdown />
             <Stack
               screenOptions={{
-                headerShown: false,
+                headerShown: true,
+                header: ({ options, navigation, back }) => (
+                  <AppHeader
+                    title={options.title || "VEER · GYM"}
+                    canGoBack={!!back}
+                    onBack={navigation.goBack}
+                  />
+                ),
               }}
             >
               <Stack.Screen

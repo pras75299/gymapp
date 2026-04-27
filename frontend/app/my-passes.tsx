@@ -9,6 +9,7 @@ import {
   Text,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import { Ionicons } from "@expo/vector-icons";
 import { gymApi } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PurchasedPass } from "../src/types";
@@ -17,6 +18,7 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../src/contexts/AuthContext";
 import { PASSES_POLLING_INTERVAL, ERROR_MESSAGES } from "../src/constants/app";
 import { logger } from "../src/utils/logger";
+import { colors, radius, space, type, layout } from "../src/theme";
 
 export default function MyPassesScreen() {
   const { userId } = useAuth();
@@ -29,7 +31,8 @@ export default function MyPassesScreen() {
   const [paymentCurrency, setPaymentCurrency] = useState<string | null>(null);
   const params = useLocalSearchParams();
   const router = useRouter();
-  const paymentErrorParam = typeof params?.paymentError === "string" ? params.paymentError : null;
+  const paymentErrorParam =
+    typeof params?.paymentError === "string" ? params.paymentError : null;
   const safePaymentError = paymentErrorParam
     ? paymentErrorParam.slice(0, 120)
     : null;
@@ -72,7 +75,6 @@ export default function MyPassesScreen() {
       setActivePasses(fetchedPasses);
       activePassesRef.current = fetchedPasses;
 
-      // If no passes are found in the database but we have data in AsyncStorage
       if (fetchedPasses.length === 0) {
         const storedPasses = await AsyncStorage.getItem("activePasses");
         if (storedPasses) {
@@ -81,7 +83,6 @@ export default function MyPassesScreen() {
         }
       }
 
-      // Clear any pending payment data after successful fetch
       const lastPassId = await AsyncStorage.getItem("lastPurchasedPassId");
       if (lastPassId) {
         const newPass = fetchedPasses.find((pass) => pass.id === lastPassId);
@@ -107,11 +108,8 @@ export default function MyPassesScreen() {
 
   useEffect(() => {
     fetchPasses();
-    
-    // Poll for updates only if we have no passes and user is signed in
     if (userId) {
       pollIntervalRef.current = setInterval(() => {
-        // Only poll while there are no active passes yet.
         if (activePassesRef.current.length === 0) {
           fetchPasses();
         }
@@ -119,9 +117,7 @@ export default function MyPassesScreen() {
     }
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, [fetchPasses, userId]);
 
@@ -142,252 +138,394 @@ export default function MyPassesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading passes...</Text>
+      <View style={styles.stateScreen}>
+        <Text style={styles.eyebrow}>Loading</Text>
+        <Text style={styles.stateTitle}>Fetching{"\n"}your passes…</Text>
+        <View style={styles.spinnerWrap}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
       </View>
     );
   }
 
-  // Handle payment verification state
   const pendingVerification = verifyingPayment || params?.paymentProcessing;
   if (pendingVerification) {
     return (
-      <View style={styles.container}>
-        <View style={styles.paymentStatusContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.paymentStatusText}>
-            Verifying your payment...
-          </Text>
-          {paymentAmount && paymentCurrency && (
-            <Text style={styles.paymentDetails}>
-              {paymentCurrency} {paymentAmount}
-            </Text>
-          )}
-          <Text style={styles.paymentStatusSubText}>
-            This may take a few moments
-          </Text>
-          <TouchableOpacity style={styles.refreshButton} onPress={fetchPasses}>
-            <Text style={styles.refreshButtonText}>Refresh Status</Text>
-          </TouchableOpacity>
+      <View style={styles.stateScreen}>
+        <Text style={styles.eyebrow}>Verifying payment</Text>
+        <Text style={styles.stateTitle}>One{"\n"}moment…</Text>
+        <View style={styles.spinnerWrap}>
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
+        {paymentAmount && paymentCurrency && (
+          <Text style={styles.amountChip}>
+            {paymentCurrency} {paymentAmount}
+          </Text>
+        )}
+        <Text style={styles.stateSub}>
+          This may take a few moments to confirm.
+        </Text>
+        <TouchableOpacity
+          style={styles.ghostBtn}
+          onPress={fetchPasses}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="refresh" size={16} color={colors.text} />
+          <Text style={styles.ghostBtnText}>Refresh status</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  // Handle payment error
   if (safePaymentError) {
     return (
-      <View style={styles.container}>
-        <View style={styles.paymentStatusContainer}>
-          <Text style={styles.errorText}>{safePaymentError}</Text>
-          <Text style={styles.subText}>
-            Please check your passes or try again later
-          </Text>
-          <TouchableOpacity style={styles.refreshButton} onPress={fetchPasses}>
-            <Text style={styles.refreshButtonText}>Refresh Passes</Text>
-          </TouchableOpacity>
+      <View style={styles.stateScreen}>
+        <View style={styles.errIcon}>
+          <Ionicons name="alert" size={26} color={colors.danger} />
         </View>
+        <Text style={styles.eyebrow}>Payment issue</Text>
+        <Text style={styles.stateTitle}>{safePaymentError}</Text>
+        <Text style={styles.stateSub}>
+          Check your passes or try again later.
+        </Text>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={fetchPasses}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="refresh" size={16} color={colors.accentInk} />
+          <Text style={styles.primaryBtnText}>Refresh passes</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.push("/")}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>My Active Pass</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+      >
+        <Text style={styles.eyebrow}>Your wallet</Text>
+        <Text style={styles.title}>
+          Active{"\n"}
+          <Text style={styles.titleAccent}>passes.</Text>
+        </Text>
 
-      {activePasses.length > 0 ? (
-        activePasses.map((pass) => (
-          <View key={pass.id} style={styles.passCard}>
-            <Text style={styles.passName}>{pass.passType.name}</Text>
-            {pass.qrCodeValue && (
-              <View style={styles.qrContainer}>
-                <QRCode
-                  value={pass.qrCodeValue}
-                  size={200}
-                  backgroundColor="white"
-                  color="#000"
-                />
-                <Text style={styles.qrLabel}>Your Entry QR Code</Text>
+        {activePasses.length > 0 ? (
+          activePasses.map((pass) => (
+            <View key={pass.id} style={styles.ticket}>
+              <View style={styles.notchTop} />
+              <View style={styles.notchBottom} />
+
+              <View style={styles.ticketHeader}>
+                <View>
+                  <Text style={styles.passEyebrow}>Pass</Text>
+                  <Text style={styles.passName}>{pass.passType.name}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    pass.isActive ? styles.statusActive : styles.statusInactive,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor: pass.isActive
+                          ? colors.success
+                          : colors.danger,
+                      },
+                    ]}
+                  />
+                  <Text style={styles.statusText}>
+                    {pass.isActive ? "ACTIVE" : "EXPIRED"}
+                  </Text>
+                </View>
               </View>
-            )}
-            <Text style={styles.expiryDate}>
-              Expires: {new Date(pass.expiryDate).toLocaleDateString()}
+
+              {pass.qrCodeValue && (
+                <View style={styles.qrWrap}>
+                  <View style={styles.qrFrame}>
+                    <QRCode
+                      value={pass.qrCodeValue}
+                      size={200}
+                      backgroundColor="#FFFFFF"
+                      color={colors.accentInk}
+                    />
+                  </View>
+                  <Text style={styles.qrCaption}>
+                    SHOW AT GYM ENTRANCE
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.divider} />
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Expires</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(pass.expiryDate).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons
+                name="ticket-outline"
+                size={28}
+                color={colors.textMuted}
+              />
+            </View>
+            <Text style={styles.emptyTitle}>No active passes</Text>
+            <Text style={styles.emptyText}>
+              Scan a gym QR code to grab your first pass.
             </Text>
-            <Text
-              style={[
-                styles.status,
-                pass.isActive ? styles.activeStatus : styles.inactiveStatus,
-              ]}
+            <TouchableOpacity
+              style={[styles.primaryBtn, styles.emptyScanBtn]}
+              onPress={() => router.push("/qr-scanner")}
+              activeOpacity={0.85}
             >
-              {pass.isActive ? "Active" : "Expired"}
-            </Text>
+              <Ionicons name="qr-code" size={16} color={colors.accentInk} />
+              <Text style={styles.primaryBtnText}>Scan QR code</Text>
+            </TouchableOpacity>
           </View>
-        ))
-      ) : (
-        <Text style={styles.noPasses}>No active passes found</Text>
-      )}
-    </ScrollView>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-    padding: 16,
-    paddingTop: 60,
+  container: { flex: 1, backgroundColor: colors.bg },
+  scroll: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: space.lg,
+    paddingBottom: 60,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
+  eyebrow: { ...type.eyebrow, color: colors.accent, marginBottom: space.md },
+  title: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 48,
+    lineHeight: 46,
+    marginBottom: space.xl,
   },
-  passCard: {
-    backgroundColor: "white",
+  titleAccent: { color: colors.accent, fontStyle: "italic" },
+  ticket: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space.lg,
+    marginBottom: space.lg,
+    overflow: "hidden",
+    position: "relative",
+  },
+  notchTop: {
+    position: "absolute",
+    top: -12,
+    alignSelf: "center",
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginTop: 15,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  notchBottom: {
+    position: "absolute",
+    bottom: -12,
+    alignSelf: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: space.lg,
+  },
+  passEyebrow: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginBottom: 2,
   },
   passName: {
+    ...type.display,
+    color: colors.text,
     fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-    marginTop: 16,
+    letterSpacing: -0.2,
   },
-  qrContainer: {
+  statusPill: {
+    flexDirection: "row",
     alignItems: "center",
-    marginVertical: 0,
-    padding: 16,
-    backgroundColor: "white",
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
   },
-  expiryDate: {
-    fontSize: 16,
-    color: "#666",
-    marginTop: 12,
-    textAlign: "center",
+  statusActive: {
+    backgroundColor: "rgba(93,255,161,0.1)",
+    borderColor: "rgba(93,255,161,0.4)",
   },
-  status: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginTop: 8,
-    textAlign: "center",
+  statusInactive: {
+    backgroundColor: "rgba(255,72,72,0.1)",
+    borderColor: "rgba(255,72,72,0.4)",
   },
-  activeStatus: {
-    color: "#4CAF50",
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
   },
-  inactiveStatus: {
-    color: "#F44336",
+  statusText: {
+    ...type.label,
+    color: colors.text,
+    fontSize: 10,
   },
-  noPasses: {
-    fontSize: 18,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 32,
-    marginBottom: 16,
+  qrWrap: { alignItems: "center", marginVertical: space.md },
+  qrFrame: {
+    padding: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: radius.sm,
   },
-  loadingText: {
-    marginTop: 20,
-    color: "#666",
-    fontSize: 16,
+  qrCaption: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: space.md,
   },
-  errorText: {
-    color: "#F44336",
-    textAlign: "center",
-    marginTop: 20,
-    fontSize: 16,
-    marginBottom: 16,
+  divider: {
+    width: "100%",
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    borderStyle: "dashed",
+    marginVertical: space.md,
   },
-  refreshButton: {
-    backgroundColor: "#007AFF",
-    padding: 16,
-    borderRadius: 8,
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 16,
   },
-  refreshButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
+  detailLabel: { ...type.label, color: colors.textMuted, fontSize: 11 },
+  detailValue: { ...type.numeric, color: colors.text, fontSize: 14 },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: space.xxl,
   },
-  paymentStatusContainer: {
-    flex: 1,
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
     justifyContent: "center",
+    marginBottom: space.md,
+  },
+  emptyTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 22,
+    marginBottom: space.xs,
+  },
+  emptyText: {
+    ...type.bodyMuted,
+    textAlign: "center",
+    fontSize: 13,
+  },
+  stateScreen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding + 24,
+  },
+  stateTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 44,
+    lineHeight: 44,
+    marginBottom: space.xxl,
+  },
+  stateSub: { ...type.bodyMuted, fontSize: 14, marginTop: space.md },
+  spinnerWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
     alignItems: "center",
-    padding: 20,
-    marginTop: 100,
+    justifyContent: "center",
+    marginBottom: space.lg,
   },
-  paymentStatusText: {
-    marginTop: 20,
-    fontSize: 18,
-    color: "#333",
+  amountChip: {
+    ...type.numeric,
+    fontSize: 20,
+    color: colors.accent,
+    marginTop: space.md,
   },
-  paymentDetails: {
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#007AFF",
+  ghostBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: space.md,
+    paddingHorizontal: space.xl,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    marginTop: space.lg,
+    alignSelf: "flex-start",
   },
-  paymentStatusSubText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  subText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  qrLabel: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-  },
-  header: {
+  ghostBtnText: { ...type.label, color: colors.text, fontSize: 12 },
+  primaryBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
-    position: "relative",
-    width: "100%",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: space.xl,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    alignSelf: "flex-start",
+    marginTop: space.lg,
   },
-  backButton: {
-    position: "absolute",
-    left: 0,
-    padding: 0,
-    paddingRight: 10,
+  emptyScanBtn: {
+    alignSelf: "center",
   },
-  backButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
+  primaryBtnText: {
+    ...type.label,
+    color: colors.accentInk,
+    fontSize: 13,
+    fontWeight: "800",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#007AFF",
-    textAlign: "center",
+  errIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: "rgba(255,72,72,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.md,
   },
 });

@@ -8,12 +8,14 @@ import {
   ScrollView,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { gymApi } from "../src/api/gymApi";
 import type { PassType } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../src/contexts/AuthContext";
 import { ERROR_MESSAGES } from "../src/constants/app";
 import { logger } from "../src/utils/logger";
+import { colors, radius, space, type, layout } from "../src/theme";
 
 export default function PassSelectionScreen() {
   const { qrIdentifier } = useLocalSearchParams<{ qrIdentifier: string }>();
@@ -23,6 +25,7 @@ export default function PassSelectionScreen() {
   const [error, setError] = useState<string | null>(null);
   const [passes, setPasses] = useState<PassType[]>([]);
   const [hasActivePass, setHasActivePass] = useState(false);
+  const [selectingId, setSelectingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPasses = async () => {
@@ -30,11 +33,9 @@ export default function PassSelectionScreen() {
         setLoading(true);
         setError(null);
 
-        // Fetch gym details using QR identifier
         const gym = await gymApi.getGymByQrIdentifier(qrIdentifier);
         setPasses(gym.passes);
 
-        // Check for active passes
         const deviceId = await AsyncStorage.getItem("deviceId");
         if (deviceId && userId) {
           const activePasses = await gymApi.getActivePasses(deviceId, userId);
@@ -43,13 +44,25 @@ export default function PassSelectionScreen() {
       } catch (err) {
         logger.error("Error fetching passes", err);
         if (err instanceof Error) {
-          // Show user-friendly error messages
-          if (err.message.includes('timeout') || err.message.includes('Connection timeout')) {
-            setError('Connection timeout. Please check your internet connection and try again.');
-          } else if (err.message.includes('Unable to connect') || err.message.includes('network')) {
-            setError('Unable to connect to server. Please check your internet connection.');
-          } else if (err.message.includes('not found') || err.message.includes('Gym not found')) {
-            setError('Gym not found. Please scan a valid gym QR code.');
+          if (
+            err.message.includes("timeout") ||
+            err.message.includes("Connection timeout")
+          ) {
+            setError(
+              "Connection timeout. Please check your internet connection and try again."
+            );
+          } else if (
+            err.message.includes("Unable to connect") ||
+            err.message.includes("network")
+          ) {
+            setError(
+              "Unable to connect to server. Please check your internet connection."
+            );
+          } else if (
+            err.message.includes("not found") ||
+            err.message.includes("Gym not found")
+          ) {
+            setError("Gym not found. Please scan a valid gym QR code.");
           } else {
             setError(err.message || ERROR_MESSAGES.FETCH_GYM_FAILED);
           }
@@ -72,14 +85,12 @@ export default function PassSelectionScreen() {
 
   const handlePassSelect = async (passId: string) => {
     try {
-      // Check if user is authenticated using Clerk's isSignedIn
+      setSelectingId(passId);
       if (!isSignedIn) {
-        // Store the selected pass ID and current route before redirecting to sign-in
         await AsyncStorage.multiSet([
           ["selectedPassId", passId],
           ["redirectAfterAuth", "/payment"],
         ]);
-        // Redirect to the existing sign-in page
         router.push("/sign-in");
         return;
       }
@@ -93,8 +104,7 @@ export default function PassSelectionScreen() {
         throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
       }
 
-      // Proceed with purchasing the pass if authenticated
-      logger.info('Purchasing pass', { passId, userId });
+      logger.info("Purchasing pass", { passId, userId });
       const order = await gymApi.purchasePass(passId, userId, deviceId);
       router.push({
         pathname: "/payment",
@@ -108,166 +118,340 @@ export default function PassSelectionScreen() {
       });
     } catch (err) {
       logger.error("Error purchasing pass", err);
-      setError(err instanceof Error ? err.message : ERROR_MESSAGES.PURCHASE_PASS_FAILED);
+      setError(
+        err instanceof Error ? err.message : ERROR_MESSAGES.PURCHASE_PASS_FAILED
+      );
+    } finally {
+      setSelectingId(null);
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading passes...</Text>
+      <View style={styles.stateScreen}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.stateTitle}>Loading passes</Text>
+        <Text style={styles.stateText}>Fetching the gym's available passes…</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.button} onPress={() => router.back()}>
-          <Text style={styles.buttonText}>Go Back</Text>
+      <View style={styles.stateScreen}>
+        <View style={styles.stateIcon}>
+          <Ionicons name="alert" size={26} color={colors.danger} />
+        </View>
+        <Text style={styles.stateTitle}>Something's off</Text>
+        <Text style={styles.stateText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.primaryBtnText}>Go back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.push("/")}
-          style={styles.backButton}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Veer's Gym Passes</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.eyebrow}>Step 02 / 03 — Choose pass</Text>
+        <Text style={styles.title}>
+          Select{"\n"}
+          <Text style={styles.titleAccent}>your pass.</Text>
+        </Text>
 
-      {hasActivePass && (
-        <View style={styles.activePassBanner}>
-          <Text style={styles.activePassText}>
-            You already have an active pass
+        {hasActivePass && (
+          <View style={styles.activeBanner}>
+            <View style={styles.activeBannerDot} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activeBannerTitle}>Active pass found</Text>
+              <Text style={styles.activeBannerText}>
+                You already have a pass — purchase blocked until it expires.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.passList}>
+          {passes.map((pass, idx) => {
+            const isLoading = selectingId === pass.id;
+            const disabled = hasActivePass || !!selectingId;
+            return (
+              <TouchableOpacity
+                key={pass.id}
+                style={[
+                  styles.passCard,
+                  disabled && !isLoading && styles.passCardDisabled,
+                ]}
+                onPress={() => handlePassSelect(pass.id)}
+                disabled={disabled}
+                activeOpacity={0.85}
+              >
+                <View style={styles.passContent}>
+                  <View style={styles.passLeft}>
+                    <Text style={styles.passIndex}>
+                      {String(idx + 1).padStart(2, "0")}
+                    </Text>
+                    <View style={styles.passDivider} />
+                    <View style={styles.passInfo}>
+                      <Text style={styles.passName}>{pass.name}</Text>
+                      <Text style={styles.passDuration} numberOfLines={1}>
+                        {pass.duration} {pass.duration === 1 ? "DAY" : "DAYS"}
+                      </Text>
+                      <Text style={styles.passHint} numberOfLines={1}>
+                        SINGLE ENTRY PASS
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.passRight}>
+                    <View>
+                      <Text style={styles.passCurrency}>{pass.currency}</Text>
+                      <Text style={styles.passPrice}>
+                        {Math.round(Number(pass.price))}
+                      </Text>
+                    </View>
+                    <View style={styles.passCta}>
+                      {isLoading ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={colors.accentInk}
+                        />
+                      ) : (
+                        <Ionicons
+                          name="arrow-forward"
+                          size={18}
+                          color={colors.accentInk}
+                        />
+                      )}
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.passDashed} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Secure checkout via Razorpay · Pass activates instantly on payment.
           </Text>
         </View>
-      )}
-
-      {passes.map((pass) => (
-        <TouchableOpacity
-          key={pass.id}
-          style={[styles.passCard, hasActivePass && styles.disabledPass]}
-          onPress={() => handlePassSelect(pass.id)}
-          disabled={hasActivePass}
-        >
-          <Text style={styles.passName}>{pass.name}</Text>
-          <Text style={styles.passPrice}>
-            {pass.price} {pass.currency}
-          </Text>
-          <Text style={styles.passDuration}>
-            Valid for {pass.duration} {pass.duration === 1 ? "day" : "days"}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-    paddingTop: 60,
+  container: { flex: 1, backgroundColor: colors.bg },
+  scroll: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: space.lg,
+    paddingBottom: 60,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-    position: "relative",
-    width: "100%",
-  },
-  backButton: {
-    position: "absolute",
-    left: 0,
-    padding: 0,
-    paddingRight: 10,
-  },
-  backButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
+  eyebrow: {
+    ...type.eyebrow,
+    color: colors.accent,
+    marginBottom: space.md,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#007AFF",
-    textAlign: "center",
+    ...type.display,
+    color: colors.text,
+    fontSize: 48,
+    lineHeight: 46,
+    marginBottom: space.xl,
   },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 20,
-    color: "#666",
-    textAlign: "center",
+  titleAccent: { color: colors.accent, fontStyle: "italic" },
+  activeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: space.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    marginBottom: space.lg,
   },
-  errorText: {
-    fontSize: 18,
-    color: "#FF3B30",
-    textAlign: "center",
-    marginBottom: 20,
+  activeBannerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success,
+    marginRight: space.md,
+  },
+  activeBannerTitle: {
+    ...type.label,
+    color: colors.text,
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  activeBannerText: {
+    ...type.bodyMuted,
+    fontSize: 12,
+  },
+  passList: {
+    gap: space.md,
   },
   passCard: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: space.lg,
+    paddingHorizontal: space.lg,
+    overflow: "hidden",
+    position: "relative",
+  },
+  passCardDisabled: { opacity: 0.45 },
+  passDashed: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    top: "50%",
+    height: 1,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.border,
+    opacity: 0,
+  },
+  passContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  passLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    minWidth: 0,
+    paddingRight: space.lg,
+  },
+  passInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  passIndex: {
+    ...type.numeric,
+    fontSize: 26,
+    color: colors.accent,
+    width: 42,
+    lineHeight: 28,
+    textAlign: "center",
+  },
+  passDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.border,
+    marginHorizontal: space.md,
   },
   passName: {
+    ...type.display,
+    color: colors.text,
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  passPrice: {
-    fontSize: 16,
-    color: "#007AFF",
-    marginBottom: 5,
+    letterSpacing: -0.2,
+    flexShrink: 1,
   },
   passDuration: {
-    fontSize: 14,
-    color: "#666",
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 14,
   },
-  button: {
-    backgroundColor: "#007AFF",
-    padding: 15,
-    borderRadius: 5,
+  passHint: {
+    ...type.label,
+    color: colors.textDim,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  passRight: {
+    flexDirection: "row",
     alignItems: "center",
-    color: "#007AFF",
+    gap: space.md,
+    marginLeft: space.sm,
+    flexShrink: 0,
+    width: 132,
+    justifyContent: "space-between",
   },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+  passCurrency: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 10,
+    textAlign: "right",
   },
-  activePassBanner: {
-    backgroundColor: "#4CAF50",
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 20,
+  passPrice: {
+    ...type.numeric,
+    fontSize: 34,
+    lineHeight: 36,
+    color: colors.text,
+    textAlign: "right",
   },
-  activePassText: {
-    color: "#fff",
+  passCta: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: space.md,
+  },
+  footer: {
+    marginTop: space.xxl,
+    paddingTop: space.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  footerText: {
+    ...type.bodyMuted,
     textAlign: "center",
-    fontWeight: "bold",
+    fontSize: 12,
   },
-  disabledPass: {
-    opacity: 0.6,
+  stateScreen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: layout.screenPadding,
+  },
+  stateIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: "rgba(255,72,72,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.md,
+  },
+  stateTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 24,
+    marginTop: space.md,
+    marginBottom: space.sm,
+  },
+  stateText: {
+    ...type.bodyMuted,
+    textAlign: "center",
+    maxWidth: 320,
+    marginBottom: space.lg,
+  },
+  primaryBtn: {
+    paddingHorizontal: space.xl,
+    paddingVertical: space.md,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+  },
+  primaryBtnText: {
+    ...type.label,
+    color: colors.accentInk,
+    fontWeight: "800",
   },
 });

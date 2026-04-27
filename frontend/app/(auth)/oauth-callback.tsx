@@ -2,8 +2,9 @@ import { useOAuth } from '@clerk/clerk-expo';
 import { useWarmUpBrowser } from '../../src/hooks/useWarmUpBrowser';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
 import { logger } from '../../src/utils/logger';
+import { colors, space, type } from '../../src/theme';
 
 export default function OAuthCallback() {
     useWarmUpBrowser();
@@ -44,8 +45,12 @@ export default function OAuthCallback() {
 
     return (
         <View style={styles.container}>
+            <StatusBar barStyle="light-content" />
             {loading ? (
-                <ActivityIndicator size="large" color="#4285F4" />
+                <>
+                    <ActivityIndicator size="large" color={colors.accent} />
+                    <Text style={styles.label}>Completing sign in…</Text>
+                </>
             ) : error ? (
                 <Text style={styles.errorText}>{error}</Text>
             ) : null}
@@ -58,12 +63,18 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.bg,
+    },
+    label: {
+        ...type.bodyMuted,
+        marginTop: space.lg,
+        fontSize: 14,
     },
     errorText: {
-        color: '#ff4444',
-        fontSize: 16,
+        ...type.label,
+        color: colors.danger,
+        fontSize: 14,
         textAlign: 'center',
-        padding: 20,
+        padding: space.lg,
     },
-}); 
+});

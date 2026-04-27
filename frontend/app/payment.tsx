@@ -5,15 +5,23 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Text,
+  StatusBar,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../src/api/gymApi";
-import { PAYMENT_MANUAL_CLOSE_TIMEOUT, PAYMENT_TIMEOUT, PAYMENT_SUCCESS_REDIRECT_DELAY, ERROR_MESSAGES } from "../src/constants/app";
+import {
+  PAYMENT_MANUAL_CLOSE_TIMEOUT,
+  PAYMENT_TIMEOUT,
+  PAYMENT_SUCCESS_REDIRECT_DELAY,
+  ERROR_MESSAGES,
+} from "../src/constants/app";
 import { logger } from "../src/utils/logger";
 import { useAuth } from "../src/contexts/AuthContext";
+import { colors, radius, space, type, layout } from "../src/theme";
 
 declare global {
   interface Window {
@@ -43,8 +51,7 @@ export default function PaymentScreen() {
   const escapeForJsString = (value: string) =>
     value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r?\n/g, "");
   const handledSuccessRef = useRef(false);
-  
-  // Use refs to track timers for proper cleanup
+
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,7 +65,7 @@ export default function PaymentScreen() {
 
     paymentTimeoutRef.current = setTimeout(() => {
       if (!paymentCompleted) {
-        logger.warn('Payment timeout reached');
+        logger.warn("Payment timeout reached");
         router.replace({
           pathname: "/my-passes",
           params: { paymentError: ERROR_MESSAGES.PAYMENT_TIMEOUT },
@@ -67,16 +74,9 @@ export default function PaymentScreen() {
     }, PAYMENT_TIMEOUT);
 
     return () => {
-      // Cleanup all timers on unmount
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-      if (paymentTimeoutRef.current) {
-        clearTimeout(paymentTimeoutRef.current);
-      }
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current);
-      }
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (paymentTimeoutRef.current) clearTimeout(paymentTimeoutRef.current);
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     };
   }, []);
 
@@ -89,7 +89,13 @@ export default function PaymentScreen() {
     }
 
     if (!passId || !amount || !currency || !orderId || !keyId) {
-      logger.error('Missing payment parameters', { passId, amount, currency, orderId, keyId });
+      logger.error("Missing payment parameters", {
+        passId,
+        amount,
+        currency,
+        orderId,
+        keyId,
+      });
       router.replace({
         pathname: "/my-passes",
         params: { paymentError: "Missing payment parameters" },
@@ -119,7 +125,6 @@ export default function PaymentScreen() {
       return;
     }
 
-    // Store the pass ID for later use
     setPurchasedPassId(trimmedPassId);
 
     const content = `
@@ -129,7 +134,7 @@ export default function PaymentScreen() {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
         </head>
-        <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+        <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #0B0B0C;">
           <script>
             function handlePaymentSuccess(response) {
               window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -145,6 +150,7 @@ export default function PaymentScreen() {
               name: "Gym Pass",
               order_id: '${escapeForJsString(trimmedOrderId)}',
               handler: handlePaymentSuccess,
+              theme: { color: '#0B0B0C' },
               modal: {
                 ondismiss: function() {
                   window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -181,7 +187,7 @@ export default function PaymentScreen() {
   const handlePaymentResponse = async (event: WebViewMessageEvent) => {
     try {
       const response = JSON.parse(event.nativeEvent.data);
-      logger.info('Payment response received', { type: response.type });
+      logger.info("Payment response received", { type: response.type });
 
       if (response.type === "success") {
         if (handledSuccessRef.current) {
@@ -189,67 +195,58 @@ export default function PaymentScreen() {
           return;
         }
         handledSuccessRef.current = true;
-        if (!response?.data?.razorpay_payment_id || !isSafeId(response.data.razorpay_payment_id)) {
+        if (
+          !response?.data?.razorpay_payment_id ||
+          !isSafeId(response.data.razorpay_payment_id)
+        ) {
           throw new Error("Invalid payment response");
         }
 
         try {
           const deviceId = await AsyncStorage.getItem("deviceId");
-          if (!deviceId) {
-            throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
-          }
-
+          if (!deviceId) throw new Error(ERROR_MESSAGES.DEVICE_ID_REQUIRED);
           if (!purchasedPassId || purchasedPassId.trim() === "") {
             throw new Error("Pass ID not available");
           }
+          if (!userId) throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
 
-          if (!userId) {
-            throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
-          }
-
-          // 1. First verify payment with backend using stored pass ID
-          logger.info('Verifying payment with backend', { passId: purchasedPassId, userId });
+          logger.info("Verifying payment with backend", {
+            passId: purchasedPassId,
+            userId,
+          });
           await gymApi.confirmPayment(
             purchasedPassId,
             response.data.razorpay_payment_id,
             userId
           );
-          logger.info('Payment verified successfully');
+          logger.info("Payment verified successfully");
 
-          // 2. After verification success, store details
           await AsyncStorage.multiSet([
             ["lastPurchasedPassId", purchasedPassId],
             ["paymentAmount", params.amount],
             ["paymentCurrency", params.currency],
           ]);
 
-          // 3. Clear timers before showing success
-          if (closeTimerRef.current) {
-            clearTimeout(closeTimerRef.current);
-          }
-          if (paymentTimeoutRef.current) {
+          if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+          if (paymentTimeoutRef.current)
             clearTimeout(paymentTimeoutRef.current);
-          }
 
-          // 4. Show success screen
           setPaymentCompleted(true);
           setShowManualClose(false);
 
-          // 5. Redirect after delay
           redirectTimerRef.current = setTimeout(() => {
             router.replace("/my-passes");
           }, PAYMENT_SUCCESS_REDIRECT_DELAY);
-
         } catch (error) {
           handledSuccessRef.current = false;
-          logger.error('Payment verification failed', error);
+          logger.error("Payment verification failed", error);
           router.replace({
             pathname: "/my-passes",
             params: { paymentError: ERROR_MESSAGES.PAYMENT_VERIFICATION_FAILED },
           });
         }
       } else if (response.type === "payment_failed") {
-        logger.warn('Payment failed');
+        logger.warn("Payment failed");
         handledSuccessRef.current = false;
         router.replace({
           pathname: "/my-passes",
@@ -257,12 +254,12 @@ export default function PaymentScreen() {
         });
       } else if (response.type === "modal_closed" && !paymentCompleted) {
         handledSuccessRef.current = false;
-        logger.info('Payment modal closed by user');
+        logger.info("Payment modal closed by user");
         router.back();
       }
     } catch (error) {
       handledSuccessRef.current = false;
-      logger.error('Payment processing error', error);
+      logger.error("Payment processing error", error);
       router.replace({
         pathname: "/my-passes",
         params: { paymentError: ERROR_MESSAGES.PAYMENT_PROCESSING_FAILED },
@@ -272,23 +269,37 @@ export default function PaymentScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Processing payment...</Text>
+      <View style={styles.stateScreen}>
+        <StatusBar barStyle="light-content" />
+        <Text style={styles.eyebrow}>Step 03 / 03</Text>
+        <Text style={styles.stateTitle}>Opening{"\n"}checkout…</Text>
+        <View style={styles.spinnerWrap}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+        <Text style={styles.stateSub}>
+          Securing your transaction with Razorpay
+        </Text>
       </View>
     );
   }
 
   if (paymentCompleted) {
     return (
-      <View style={styles.loadingContainer}>
-        <View style={styles.successContainer}>
-          <View style={styles.checkmarkContainer}>
-            <Text style={styles.checkmark}>✓</Text>
-          </View>
-          <Text style={styles.successTitle}>PAYMENT{'\n'}SUCCESSFUL</Text>
-          <ActivityIndicator size="small" color="#4CAF50" style={styles.redirectSpinner} />
-          <Text style={styles.redirectText}>Redirecting to your passes...</Text>
+      <View style={styles.stateScreen}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.successBadge}>
+          <Ionicons name="checkmark" size={36} color={colors.accentInk} />
+        </View>
+        <Text style={styles.eyebrow}>Confirmed</Text>
+        <Text style={styles.stateTitle}>
+          Payment{"\n"}
+          <Text style={styles.titleAccent}>received.</Text>
+        </Text>
+        <View style={styles.redirectRow}>
+          <ActivityIndicator size="small" color={colors.accent} />
+          <Text style={styles.stateSub}>
+            Generating your entry QR code…
+          </Text>
         </View>
       </View>
     );
@@ -296,47 +307,41 @@ export default function PaymentScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <WebView
         source={{ html: htmlContent }}
         onMessage={handlePaymentResponse}
         style={styles.webview}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
+        javaScriptEnabled
+        domStorageEnabled
         originWhitelist={["https://*", "about:blank"]}
-        startInLoadingState={true}
+        startInLoadingState
         onNavigationStateChange={(navState) => {
-          logger.debug('Navigation state changed', { url: navState.url });
-
-          // Check for Razorpay callback URL with successful payment
-          if (navState.url.includes('/callback/') && navState.url.includes('status=authorized')) {
-            logger.info('Detected successful payment in callback URL');
-
-            // Extract payment ID from URL
-            const paymentId = navState.url.split('payments/')[1]?.split('/')[0];
+          logger.debug("Navigation state changed", { url: navState.url });
+          if (
+            navState.url.includes("/callback/") &&
+            navState.url.includes("status=authorized")
+          ) {
+            logger.info("Detected successful payment in callback URL");
+            const paymentId = navState.url.split("payments/")[1]?.split("/")[0];
             if (paymentId) {
-              logger.info('Extracted payment ID from URL', { paymentId });
-
-              // Simulate the payment success response
+              logger.info("Extracted payment ID from URL", { paymentId });
               handlePaymentResponse({
                 nativeEvent: {
                   data: JSON.stringify({
-                    type: 'success',
-                    data: {
-                      razorpay_payment_id: paymentId
-                    }
-                  })
-                }
+                    type: "success",
+                    data: { razorpay_payment_id: paymentId },
+                  }),
+                },
               } as WebViewMessageEvent);
             }
           }
-
-          // Show manual close for bank pages
           if (navState.url.includes("axisbank") && !paymentCompleted) {
             setShowManualClose(true);
           }
         }}
         onError={(error) => {
-          logger.error('WebView error', error);
+          logger.error("WebView error", error);
           router.replace({
             pathname: "/my-passes",
             params: { paymentError: "Payment error occurred" },
@@ -348,11 +353,13 @@ export default function PaymentScreen() {
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => {
-            logger.info('Manual close button pressed');
+            logger.info("Manual close button pressed");
             router.back();
           }}
+          activeOpacity={0.85}
         >
-          <Text style={styles.closeButtonText}>Close Payment</Text>
+          <Ionicons name="close" size={16} color={colors.text} />
+          <Text style={styles.closeButtonText}>Close payment</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -360,76 +367,75 @@ export default function PaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: colors.bg },
+  webview: { flex: 1, backgroundColor: colors.bg },
+  stateScreen: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.bg,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding + 24,
+    paddingBottom: 60,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  eyebrow: {
+    ...type.eyebrow,
+    color: colors.accent,
+    marginBottom: space.md,
+  },
+  stateTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 48,
+    lineHeight: 46,
+    marginBottom: space.xxl,
+  },
+  titleAccent: { color: colors.accent, fontStyle: "italic" },
+  stateSub: {
+    ...type.bodyMuted,
+    fontSize: 14,
+    marginLeft: space.md,
+  },
+  spinnerWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
     alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  successContainer: {
-    alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    marginBottom: space.lg,
   },
-  checkmarkContainer: {
+  successBadge: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
+    borderRadius: radius.sm,
+    backgroundColor: colors.accent,
     alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center",
+    marginBottom: space.xl,
   },
-  checkmark: {
-    color: "#fff",
-    fontSize: 40,
-    fontWeight: "bold",
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#4CAF50",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  redirectSpinner: {
-    marginBottom: 10,
-  },
-  redirectText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
-  },
-  webview: {
-    flex: 1,
+  redirectRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: space.md,
   },
   closeButton: {
     position: "absolute",
     bottom: 30,
-    right: 20,
-    backgroundColor: "#FF3B30",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 100,
+    right: layout.screenPadding,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    gap: 6,
   },
   closeButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
+    ...type.label,
+    color: colors.text,
+    fontSize: 12,
   },
 });

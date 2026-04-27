@@ -5,13 +5,20 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  StatusBar,
+  ScrollView,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
+import { Ionicons } from "@expo/vector-icons";
 import { gymApi, PassStatus } from "../src/api/gymApi";
-import { API_POLLING_INTERVAL, API_POLLING_MAX_ATTEMPTS } from "../src/constants/app";
+import {
+  API_POLLING_INTERVAL,
+  API_POLLING_MAX_ATTEMPTS,
+} from "../src/constants/app";
 import { logger } from "../src/utils/logger";
 import { useAuth } from "../src/contexts/AuthContext";
+import { colors, radius, space, type, layout } from "../src/theme";
 
 export default function SuccessScreen() {
   const { passId } = useLocalSearchParams<{ passId: string }>();
@@ -76,9 +83,7 @@ export default function SuccessScreen() {
     }
 
     return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
+      if (pollingInterval) clearInterval(pollingInterval);
     };
   }, [passId, userId, router]);
 
@@ -88,20 +93,32 @@ export default function SuccessScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Confirming your payment...</Text>
-        <Text style={styles.subText}>This may take a few moments</Text>
+      <View style={styles.stateScreen}>
+        <StatusBar barStyle="light-content" />
+        <Text style={styles.eyebrow}>Confirming</Text>
+        <Text style={styles.stateTitle}>Generating{"\n"}your pass…</Text>
+        <View style={styles.spinnerWrap}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
+        <Text style={styles.stateSub}>This may take a few moments.</Text>
       </View>
     );
   }
 
   if (error || !passStatus) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error || "Something went wrong"}</Text>
-        <TouchableOpacity style={styles.button} onPress={handleViewPasses}>
-          <Text style={styles.buttonText}>View My Passes</Text>
+      <View style={styles.stateScreen}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.errIcon}>
+          <Ionicons name="alert" size={26} color={colors.danger} />
+        </View>
+        <Text style={styles.stateTitle}>{error || "Something went wrong"}</Text>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={handleViewPasses}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.primaryBtnText}>View my passes</Text>
         </TouchableOpacity>
       </View>
     );
@@ -109,13 +126,19 @@ export default function SuccessScreen() {
 
   if (passStatus.status !== "succeeded" || !passStatus.qrCodeValue) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Payment processing...</Text>
-        <Text style={styles.subText}>
-          Please wait while we confirm your payment
+      <View style={styles.stateScreen}>
+        <StatusBar barStyle="light-content" />
+        <Text style={styles.eyebrow}>Processing</Text>
+        <Text style={styles.stateTitle}>Payment{"\n"}processing…</Text>
+        <Text style={styles.stateSub}>
+          Hang tight while we confirm your transaction.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={handleViewPasses}>
-          <Text style={styles.buttonText}>View My Passes</Text>
+        <TouchableOpacity
+          style={[styles.primaryBtn, { marginTop: space.xl }]}
+          onPress={handleViewPasses}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.primaryBtnText}>View my passes</Text>
         </TouchableOpacity>
       </View>
     );
@@ -123,115 +146,236 @@ export default function SuccessScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Payment Successful!</Text>
-      <View style={styles.qrContainer}>
-        <QRCode
-          value={passStatus.qrCodeValue}
-          size={200}
-          backgroundColor="white"
-          color="#000"
-        />
-      </View>
-      <View style={styles.detailsContainer}>
-        <Text style={styles.detailText}>
-          Pass Type: {passStatus.passType?.name || 'Loading...'}
+      <StatusBar barStyle="light-content" />
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.headerRow}>
+          <View style={styles.brandMark}>
+            <View style={styles.brandDot} />
+            <Text style={styles.brandText}>VEER · GYM</Text>
+          </View>
+          <Text style={styles.unit}>PASS · 01</Text>
+        </View>
+
+        <Text style={styles.eyebrow}>Confirmed · Show at entrance</Text>
+        <Text style={styles.title}>
+          Welcome.{"\n"}
+          <Text style={styles.titleAccent}>You're in.</Text>
         </Text>
-        <Text style={styles.detailText}>
-          Expiry Date: {passStatus.expiryDate ? new Date(passStatus.expiryDate).toLocaleDateString() : 'Loading...'}
+
+        <View style={styles.ticket}>
+          <View style={styles.notchTop} />
+          <View style={styles.notchBottom} />
+
+          <View style={styles.qrWrap}>
+            <View style={styles.qrFrame}>
+              <QRCode
+                value={passStatus.qrCodeValue}
+                size={200}
+                backgroundColor="#FFFFFF"
+                color={colors.accentInk}
+              />
+            </View>
+            <Text style={styles.qrCaption}>SCAN TO ENTER</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.detailsBlock}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Pass</Text>
+              <Text style={styles.detailValue}>
+                {passStatus.passType?.name || "—"}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Expires</Text>
+              <Text style={styles.detailValue}>
+                {passStatus.expiryDate
+                  ? new Date(passStatus.expiryDate).toLocaleDateString()
+                  : "—"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.instructions}>
+          Show the QR code at the gym entrance. The pass auto-expires after the
+          listed date.
         </Text>
-      </View>
-      <Text style={styles.instructions}>
-        Show this QR code at the gym entrance to gain access
-      </Text>
-      <TouchableOpacity style={styles.button} onPress={handleViewPasses}>
-        <Text style={styles.buttonText}>View All My Passes</Text>
-      </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={handleViewPasses}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.primaryBtnText}>View all my passes</Text>
+          <Ionicons
+            name="arrow-forward"
+            size={18}
+            color={colors.accentInk}
+            style={{ marginLeft: 8 }}
+          />
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: colors.bg },
+  scroll: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding,
+    paddingBottom: 60,
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    marginBottom: space.xxl,
   },
+  brandMark: { flexDirection: "row", alignItems: "center" },
+  brandDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: colors.accent,
+    marginRight: space.sm,
+  },
+  brandText: { ...type.label, color: colors.text, fontWeight: "700" },
+  unit: { ...type.label, color: colors.textMuted },
+  eyebrow: { ...type.eyebrow, color: colors.accent, marginBottom: space.md },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#007AFF",
+    ...type.display,
+    color: colors.text,
+    fontSize: 48,
+    lineHeight: 46,
+    marginBottom: space.xl,
   },
-  qrContainer: {
-    padding: 20,
-    backgroundColor: "white",
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginBottom: 20,
+  titleAccent: { color: colors.accent, fontStyle: "italic" },
+  ticket: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+    marginBottom: space.xl,
   },
-  detailsContainer: {
-    padding: 20,
-    backgroundColor: "white",
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginBottom: 20,
+  notchTop: {
+    position: "absolute",
+    top: -12,
+    alignSelf: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  detailText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 10,
+  notchBottom: {
+    position: "absolute",
+    bottom: -12,
+    alignSelf: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  qrWrap: { alignItems: "center" },
+  qrFrame: {
+    padding: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: radius.sm,
+  },
+  qrCaption: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: space.md,
+  },
+  divider: {
+    width: "100%",
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    borderStyle: "dashed",
+    marginVertical: space.lg,
+  },
+  detailsBlock: { width: "100%" },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: space.sm,
+  },
+  detailLabel: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  detailValue: {
+    ...type.numeric,
+    color: colors.text,
+    fontSize: 14,
   },
   instructions: {
-    fontSize: 16,
+    ...type.bodyMuted,
     textAlign: "center",
-    color: "#666",
-    marginTop: 20,
-    marginBottom: 20,
+    fontSize: 13,
+    marginBottom: space.xl,
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#666",
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    borderRadius: radius.sm,
   },
-  errorText: {
-    fontSize: 18,
-    color: "#FF3B30",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  subText: {
+  primaryBtnText: {
+    ...type.label,
+    color: colors.accentInk,
     fontSize: 14,
-    color: "#666",
-    marginTop: 10,
-    textAlign: "center",
-    marginBottom: 20,
+    fontWeight: "800",
   },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 10,
+  stateScreen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding + 24,
   },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+  stateTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 44,
+    lineHeight: 44,
+    marginBottom: space.xxl,
+  },
+  stateSub: { ...type.bodyMuted, fontSize: 14 },
+  spinnerWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.lg,
+  },
+  errIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: "rgba(255,72,72,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.md,
   },
 });

@@ -10,6 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../src/contexts/AuthContext";
+import { colors, radius, space, type, layout, shadows } from "../src/theme";
 
 export default function HomePage() {
   const router = useRouter();
@@ -22,31 +23,88 @@ export default function HomePage() {
   return (
     <ImageBackground
       source={require("../assets/images/background-gym.png")}
-      style={styles.backgroundImage}
+      style={styles.bg}
       resizeMode="cover"
     >
       <StatusBar barStyle="light-content" />
-      <View style={styles.overlay}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome to Veers Gym</Text>
-          </View>
-          <Text style={styles.subtitle}>Scan QR code to get your gym pass</Text>
+      <View style={styles.scrim} />
+      <View style={styles.gradientBottom} />
 
-          <TouchableOpacity style={styles.scanButton} onPress={handleScanPress}>
-            <Ionicons name="qr-code-outline" size={24} color="white" />
-            <Text style={styles.scanButtonText}>Scan QR Code</Text>
+      <View style={styles.container}>
+        <View style={styles.topRow}>
+          <View style={styles.brandMark}>
+            <View style={styles.brandDot} />
+            <Text style={styles.brandText}>VEER · GYM</Text>
+          </View>
+          <Text style={styles.unit}>NO. 001</Text>
+        </View>
+
+        <View style={styles.heroBlock}>
+          <Text style={styles.eyebrow}>Members entry / day pass</Text>
+          <Text style={styles.headline}>
+            Train{"\n"}
+            <Text style={styles.headlineAccent}>without</Text>
+            {"\n"}friction.
+          </Text>
+          <Text style={styles.lede}>
+            Scan the gym QR. Pick a pass. Pay. Walk in. Your entry code is on
+            your phone.
+          </Text>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleScanPress}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="qr-code"
+              size={20}
+              color={colors.accentInk}
+              style={styles.btnIcon}
+            />
+            <Text style={styles.primaryBtnText}>Scan QR Code</Text>
+            <Ionicons
+              name="arrow-forward"
+              size={18}
+              color={colors.accentInk}
+            />
           </TouchableOpacity>
 
           {isSignedIn && (
             <TouchableOpacity
-              style={[styles.scanButton, styles.myPassesButton]}
+              style={styles.secondaryBtn}
               onPress={() => router.push("/my-passes")}
+              activeOpacity={0.85}
             >
-              <Ionicons name="card-outline" size={24} color="white" />
-              <Text style={styles.scanButtonText}>My Passes</Text>
+              <Ionicons
+                name="card-outline"
+                size={18}
+                color={colors.text}
+                style={styles.btnIcon}
+              />
+              <Text style={styles.secondaryBtnText}>My Active Passes</Text>
+              <View style={styles.indicator} />
             </TouchableOpacity>
           )}
+
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>01</Text>
+              <Text style={styles.metaText}>Scan</Text>
+            </View>
+            <View style={styles.metaDash} />
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>02</Text>
+              <Text style={styles.metaText}>Pay</Text>
+            </View>
+            <View style={styles.metaDash} />
+            <View style={styles.metaItem}>
+              <Text style={styles.metaLabel}>03</Text>
+              <Text style={styles.metaText}>Enter</Text>
+            </View>
+          </View>
         </View>
       </View>
     </ImageBackground>
@@ -54,61 +112,153 @@ export default function HomePage() {
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  bg: {
     flex: 1,
     width: "100%",
+    backgroundColor: colors.bg,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(8,8,9,0.72)",
   },
-  content: {
+  gradientBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 240,
+    backgroundColor: colors.bg,
+    opacity: 0.85,
+  },
+  container: {
     flex: 1,
-    justifyContent: "center",
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: layout.topPadding,
+    paddingBottom: layout.bottomPadding,
+    justifyContent: "space-between",
+  },
+  topRow: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 20,
+    justifyContent: "space-between",
   },
-  header: {
-    padding: 20,
-    paddingTop: 10,
+  brandMark: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
+  brandDot: {
+    width: 10,
+    height: 10,
+    backgroundColor: colors.accent,
+    marginRight: space.sm,
   },
-  subtitle: {
+  brandText: {
+    ...type.label,
+    color: colors.text,
+    fontWeight: "700",
+  },
+  unit: {
+    ...type.label,
+    color: colors.textMuted,
+  },
+  heroBlock: {
+    marginTop: space.xxxl,
+  },
+  eyebrow: {
+    ...type.eyebrow,
+    marginBottom: space.lg,
+  },
+  headline: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 64,
+    lineHeight: 60,
+  },
+  headlineAccent: {
+    color: colors.accent,
+    fontStyle: "italic",
+  },
+  lede: {
+    ...type.body,
+    color: colors.textMuted,
+    marginTop: space.lg,
+    maxWidth: 320,
+  },
+  actions: {
+    width: "100%",
+  },
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: space.xl,
+    paddingVertical: 18,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    marginBottom: space.md,
+    ...shadows.glow,
+  },
+  primaryBtnText: {
+    ...type.label,
     fontSize: 16,
-    color: "rgba(255, 255, 255, 0.9)",
-    marginBottom: 40,
-    textAlign: "center",
+    color: colors.accentInk,
+    fontWeight: "800",
+    flex: 1,
+    marginLeft: space.md,
   },
-  scanButton: {
-    backgroundColor: "#007AFF",
+  btnIcon: {
+    marginRight: 0,
+  },
+  secondaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: space.xl,
+    paddingVertical: 16,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(20,20,22,0.85)",
+  },
+  secondaryBtnText: {
+    ...type.label,
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+    marginLeft: space.md,
+    fontWeight: "700",
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+  },
+  metaRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 15,
-    borderRadius: 12,
-    width: "80%",
-    maxWidth: 300,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    marginTop: space.xl,
   },
-  scanButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
-    marginLeft: 10,
+  metaItem: {
+    alignItems: "center",
+    flexDirection: "row",
   },
-  myPassesButton: {
-    marginTop: 20,
-    backgroundColor: "#4CAF50",
+  metaLabel: {
+    ...type.label,
+    fontSize: 11,
+    color: colors.accent,
+    marginRight: space.xs,
+  },
+  metaText: {
+    ...type.label,
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  metaDash: {
+    width: 18,
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: space.md,
   },
 });
