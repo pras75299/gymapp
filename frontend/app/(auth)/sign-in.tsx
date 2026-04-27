@@ -16,7 +16,7 @@ import { useSignIn, useUser, useClerk } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../../src/api/gymApi";
-import { ERROR_MESSAGES } from "../../src/constants/app";
+import { ERROR_MESSAGES, USER_ERROR_MESSAGES } from "../../src/constants/app";
 import { logger } from "../../src/utils/logger";
 
 export default function SignInScreen() {
@@ -122,7 +122,7 @@ export default function SignInScreen() {
             // Show error to user and redirect to home
             Alert.alert(
               "Payment Error",
-              ERROR_MESSAGES.PAYMENT_ERROR || "There was an error processing your payment. Please try again.",
+              USER_ERROR_MESSAGES.PAYMENT_ERROR,
               [{ text: "OK", onPress: () => router.replace("/") }]
             );
           }

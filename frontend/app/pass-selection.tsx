@@ -61,9 +61,13 @@ export default function PassSelectionScreen() {
       }
     };
 
-    if (qrIdentifier) {
-      fetchPasses();
+    if (!qrIdentifier) {
+      setError("Missing gym identifier. Please scan the gym QR code again.");
+      setLoading(false);
+      return;
     }
+
+    fetchPasses();
   }, [qrIdentifier, userId]);
 
   const handlePassSelect = async (passId: string) => {
@@ -265,6 +269,5 @@ const styles = StyleSheet.create({
   },
   disabledPass: {
     opacity: 0.6,
-    pointerEvents: "none",
   },
 });

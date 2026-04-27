@@ -7,6 +7,7 @@ import {
   Text,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import type { WebViewMessageEvent } from "react-native-webview/lib/WebViewTypes";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../src/api/gymApi";
@@ -37,11 +38,16 @@ export default function PaymentScreen() {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [showManualClose, setShowManualClose] = useState(false);
   const [purchasedPassId, setPurchasedPassId] = useState<string>("");
+  const isSafeId = (value: string) => /^[a-zA-Z0-9_:-]{3,128}$/.test(value);
+  const isSafeCurrency = (value: string) => /^[A-Z]{3}$/.test(value);
+  const escapeForJsString = (value: string) =>
+    value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r?\n/g, "");
+  const handledSuccessRef = useRef(false);
   
   // Use refs to track timers for proper cleanup
-  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const paymentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paymentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     validateAndInitializePayment();
@@ -77,6 +83,11 @@ export default function PaymentScreen() {
   const validateAndInitializePayment = () => {
     const { passId, amount, currency, orderId, keyId } = params;
 
+    if (!userId) {
+      router.replace("/(auth)/sign-in");
+      return;
+    }
+
     if (!passId || !amount || !currency || !orderId || !keyId) {
       logger.error('Missing payment parameters', { passId, amount, currency, orderId, keyId });
       router.replace({
@@ -86,9 +97,21 @@ export default function PaymentScreen() {
       return;
     }
 
-    // Validate passId is not empty
-    if (passId.trim() === "") {
-      logger.error('Empty passId provided');
+    const trimmedPassId = passId.trim();
+    const trimmedOrderId = orderId.trim();
+    const trimmedKeyId = keyId.trim();
+    const normalizedCurrency = currency.trim().toUpperCase();
+    const numericAmount = Number(amount);
+
+    if (
+      !isSafeId(trimmedPassId) ||
+      !isSafeId(trimmedOrderId) ||
+      !isSafeId(trimmedKeyId) ||
+      !isSafeCurrency(normalizedCurrency) ||
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
+      logger.error("Invalid payment parameters");
       router.replace({
         pathname: "/my-passes",
         params: { paymentError: "Invalid payment parameters" },
@@ -97,7 +120,7 @@ export default function PaymentScreen() {
     }
 
     // Store the pass ID for later use
-    setPurchasedPassId(passId);
+    setPurchasedPassId(trimmedPassId);
 
     const content = `
       <!DOCTYPE html>
@@ -116,11 +139,11 @@ export default function PaymentScreen() {
             }
 
             const options = {
-              key: '${keyId}',
-              amount: ${parseFloat(amount) * 100},
-              currency: '${currency}',
+              key: '${escapeForJsString(trimmedKeyId)}',
+              amount: ${Math.round(numericAmount * 100)},
+              currency: '${escapeForJsString(normalizedCurrency)}',
               name: "Gym Pass",
-              order_id: '${orderId}',
+              order_id: '${escapeForJsString(trimmedOrderId)}',
               handler: handlePaymentSuccess,
               modal: {
                 ondismiss: function() {
@@ -133,7 +156,7 @@ export default function PaymentScreen() {
                 handleback: false
               },
               notes: {
-                passId: '${passId}'
+                passId: '${escapeForJsString(trimmedPassId)}'
               }
             };
 
@@ -155,12 +178,21 @@ export default function PaymentScreen() {
     setLoading(false);
   };
 
-  const handlePaymentResponse = async (event: any) => {
+  const handlePaymentResponse = async (event: WebViewMessageEvent) => {
     try {
       const response = JSON.parse(event.nativeEvent.data);
       logger.info('Payment response received', { type: response.type });
 
       if (response.type === "success") {
+        if (handledSuccessRef.current) {
+          logger.warn("Duplicate payment success event ignored");
+          return;
+        }
+        handledSuccessRef.current = true;
+        if (!response?.data?.razorpay_payment_id || !isSafeId(response.data.razorpay_payment_id)) {
+          throw new Error("Invalid payment response");
+        }
+
         try {
           const deviceId = await AsyncStorage.getItem("deviceId");
           if (!deviceId) {
@@ -209,6 +241,7 @@ export default function PaymentScreen() {
           }, PAYMENT_SUCCESS_REDIRECT_DELAY);
 
         } catch (error) {
+          handledSuccessRef.current = false;
           logger.error('Payment verification failed', error);
           router.replace({
             pathname: "/my-passes",
@@ -217,15 +250,18 @@ export default function PaymentScreen() {
         }
       } else if (response.type === "payment_failed") {
         logger.warn('Payment failed');
+        handledSuccessRef.current = false;
         router.replace({
           pathname: "/my-passes",
           params: { paymentError: ERROR_MESSAGES.PAYMENT_FAILED },
         });
       } else if (response.type === "modal_closed" && !paymentCompleted) {
+        handledSuccessRef.current = false;
         logger.info('Payment modal closed by user');
         router.back();
       }
     } catch (error) {
+      handledSuccessRef.current = false;
       logger.error('Payment processing error', error);
       router.replace({
         pathname: "/my-passes",
@@ -266,6 +302,7 @@ export default function PaymentScreen() {
         style={styles.webview}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        originWhitelist={["https://*", "about:blank"]}
         startInLoadingState={true}
         onNavigationStateChange={(navState) => {
           logger.debug('Navigation state changed', { url: navState.url });
@@ -289,7 +326,7 @@ export default function PaymentScreen() {
                     }
                   })
                 }
-              });
+              } as WebViewMessageEvent);
             }
           }
 

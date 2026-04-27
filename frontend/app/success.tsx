@@ -22,18 +22,25 @@ export default function SuccessScreen() {
   const [passStatus, setPassStatus] = useState<PassStatus | null>(null);
 
   useEffect(() => {
-    let pollingInterval: NodeJS.Timeout | null = null;
+    let pollingInterval: ReturnType<typeof setInterval> | null = null;
     let attempts = 0;
+    const safePassId = typeof passId === "string" ? passId.trim() : "";
+    const isSafePassId = /^[a-zA-Z0-9_:-]{3,128}$/.test(safePassId);
 
     const fetchPassStatus = async () => {
-      if (!userId || !passId) {
-        setError("User ID or Pass ID is missing");
+      if (!userId) {
+        router.replace("/(auth)/sign-in");
+        return;
+      }
+
+      if (!isSafePassId) {
+        setError("Invalid pass ID");
         setLoading(false);
         return;
       }
 
       try {
-        const status = await gymApi.getPassStatus(passId, userId);
+        const status = await gymApi.getPassStatus(safePassId, userId);
         setPassStatus(status);
 
         if (status.status === "succeeded" && status.qrCodeValue) {
@@ -61,9 +68,11 @@ export default function SuccessScreen() {
       }
     };
 
-    if (passId) {
+    if (isSafePassId && userId) {
       fetchPassStatus();
       pollingInterval = setInterval(fetchPassStatus, API_POLLING_INTERVAL);
+    } else if (!userId || !isSafePassId) {
+      setLoading(false);
     }
 
     return () => {
@@ -71,7 +80,7 @@ export default function SuccessScreen() {
         clearInterval(pollingInterval);
       }
     };
-  }, [passId, userId]);
+  }, [passId, userId, router]);
 
   const handleViewPasses = () => {
     router.replace("/my-passes");

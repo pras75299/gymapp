@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Text,
-  Alert,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { gymApi } from "../src/api/gymApi";
@@ -30,6 +29,11 @@ export default function MyPassesScreen() {
   const [paymentCurrency, setPaymentCurrency] = useState<string | null>(null);
   const params = useLocalSearchParams();
   const router = useRouter();
+  const paymentErrorParam = typeof params?.paymentError === "string" ? params.paymentError : null;
+  const safePaymentError = paymentErrorParam
+    ? paymentErrorParam.slice(0, 120)
+    : null;
+  const activePassesRef = useRef<PurchasedPass[]>([]);
 
   const clearPassData = async () => {
     try {
@@ -51,7 +55,14 @@ export default function MyPassesScreen() {
       setError(null);
 
       const deviceId = await AsyncStorage.getItem("deviceId");
-      if (!deviceId || !userId) {
+      if (!userId) {
+        router.replace("/(auth)/sign-in");
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      if (!deviceId) {
         setLoading(false);
         setRefreshing(false);
         return;
@@ -59,6 +70,7 @@ export default function MyPassesScreen() {
 
       const fetchedPasses = await gymApi.getActivePasses(deviceId, userId);
       setActivePasses(fetchedPasses);
+      activePassesRef.current = fetchedPasses;
 
       // If no passes are found in the database but we have data in AsyncStorage
       if (fetchedPasses.length === 0) {
@@ -89,9 +101,9 @@ export default function MyPassesScreen() {
       setRefreshing(false);
       setVerifyingPayment(false);
     }
-  }, [userId]);
+  }, [userId, router]);
 
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     fetchPasses();
@@ -99,13 +111,10 @@ export default function MyPassesScreen() {
     // Poll for updates only if we have no passes and user is signed in
     if (userId) {
       pollIntervalRef.current = setInterval(() => {
-        // Only poll if we still have no passes
-        setActivePasses((currentPasses) => {
-          if (currentPasses.length === 0) {
-            fetchPasses();
-          }
-          return currentPasses;
-        });
+        // Only poll while there are no active passes yet.
+        if (activePassesRef.current.length === 0) {
+          fetchPasses();
+        }
       }, PASSES_POLLING_INTERVAL);
     }
 
@@ -167,11 +176,11 @@ export default function MyPassesScreen() {
   }
 
   // Handle payment error
-  if (params?.paymentError) {
+  if (safePaymentError) {
     return (
       <View style={styles.container}>
         <View style={styles.paymentStatusContainer}>
-          <Text style={styles.errorText}>{params.paymentError}</Text>
+          <Text style={styles.errorText}>{safePaymentError}</Text>
           <Text style={styles.subText}>
             Please check your passes or try again later
           </Text>
