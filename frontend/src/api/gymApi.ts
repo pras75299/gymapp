@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
-import { PassType, PurchasedPass } from '../types';
+import { PassType, ProMembershipEntitlement, PurchasedPass } from '../types';
 import { API_TIMEOUT, ERROR_MESSAGES } from '../constants/app';
 import { logger } from '../utils/logger';
 
@@ -346,6 +346,31 @@ export const gymApi = {
             }
             logger.error('Error fetching active passes', error);
             throw new ApiError(ERROR_MESSAGES.FETCH_ACTIVE_PASSES_FAILED);
+        }
+    },
+
+    getMembershipEntitlement: async (userId: string): Promise<ProMembershipEntitlement> => {
+        if (!userId) throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
+
+        try {
+            getApiUrl();
+        } catch (error) {
+            throw new ApiError(ERROR_MESSAGES.API_NOT_CONFIGURED);
+        }
+
+        try {
+            const response = await apiClient.get('/membership/entitlement', {
+                timeout: 8000,
+            });
+            return response.data;
+        } catch (error) {
+            logger.error('Error fetching membership entitlement', error);
+            if (axios.isAxiosError(error)) {
+                if (error.response?.status === 401 || error.response?.status === 403) {
+                    throw new ApiError('Please sign in to view membership details');
+                }
+            }
+            throw new ApiError('Failed to fetch membership entitlement');
         }
     },
 

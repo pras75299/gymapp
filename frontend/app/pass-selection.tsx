@@ -27,6 +27,26 @@ export default function PassSelectionScreen() {
   const [hasActivePass, setHasActivePass] = useState(false);
   const [selectingId, setSelectingId] = useState<string | null>(null);
 
+  const getTier = (pass: PassType): "REGULAR" | "PRO" => {
+    if (pass.tier === "PRO" || pass.tier === "REGULAR") return pass.tier;
+    return pass.name.toLowerCase().includes("pro") ? "PRO" : "REGULAR";
+  };
+
+  const groupedPasses = passes.reduce<Record<number, { REGULAR?: PassType; PRO?: PassType }>>(
+    (acc, pass) => {
+      const key = pass.duration;
+      const tier = getTier(pass);
+      if (!acc[key]) acc[key] = {};
+      acc[key][tier] = pass;
+      return acc;
+    },
+    {}
+  );
+
+  const sortedDurations = Object.keys(groupedPasses)
+    .map(Number)
+    .sort((a, b) => a - b);
+
   useEffect(() => {
     const fetchPasses = async () => {
       try {
@@ -177,63 +197,76 @@ export default function PassSelectionScreen() {
         )}
 
         <View style={styles.passList}>
-          {passes.map((pass, idx) => {
-            const isLoading = selectingId === pass.id;
-            const disabled = hasActivePass || !!selectingId;
-            return (
-              <TouchableOpacity
-                key={pass.id}
-                style={[
-                  styles.passCard,
-                  disabled && !isLoading && styles.passCardDisabled,
-                ]}
-                onPress={() => handlePassSelect(pass.id)}
-                disabled={disabled}
-                activeOpacity={0.85}
-              >
-                <View style={styles.passContent}>
-                  <View style={styles.passLeft}>
-                    <Text style={styles.passIndex}>
-                      {String(idx + 1).padStart(2, "0")}
-                    </Text>
-                    <View style={styles.passDivider} />
-                    <View style={styles.passInfo}>
-                      <Text style={styles.passName}>{pass.name}</Text>
-                      <Text style={styles.passDuration} numberOfLines={1}>
-                        {pass.duration} {pass.duration === 1 ? "DAY" : "DAYS"}
-                      </Text>
-                      <Text style={styles.passHint} numberOfLines={1}>
-                        SINGLE ENTRY PASS
-                      </Text>
-                    </View>
-                  </View>
+          {sortedDurations.map((duration, idx) => {
+            const pair = groupedPasses[duration];
+            const regular = pair?.REGULAR;
+            const pro = pair?.PRO;
+            const options = [regular, pro].filter((item): item is PassType => Boolean(item));
 
-                  <View style={styles.passRight}>
-                    <View>
-                      <Text style={styles.passCurrency}>{pass.currency}</Text>
-                      <Text style={styles.passPrice}>
-                        {Math.round(Number(pass.price))}
-                      </Text>
-                    </View>
-                    <View style={styles.passCta}>
-                      {isLoading ? (
-                        <ActivityIndicator
-                          size="small"
-                          color={colors.accentInk}
-                        />
-                      ) : (
-                        <Ionicons
-                          name="arrow-forward"
-                          size={18}
-                          color={colors.accentInk}
-                        />
-                      )}
-                    </View>
+            return (
+              <View key={duration} style={styles.passGroupCard}>
+                <View style={styles.passGroupHeader}>
+                  <Text style={styles.passIndex}>{String(idx + 1).padStart(2, "0")}</Text>
+                  <View style={styles.passDivider} />
+                  <View style={styles.passInfo}>
+                    <Text style={styles.passName}>
+                      {duration} {duration === 1 ? "DAY" : "DAYS"}
+                    </Text>
+                    <Text style={styles.passHint} numberOfLines={1}>
+                      Choose Regular or Pro
+                    </Text>
                   </View>
                 </View>
 
-                <View style={styles.passDashed} />
-              </TouchableOpacity>
+                <View style={styles.variantList}>
+                  {options.map((pass) => {
+                    const isLoading = selectingId === pass.id;
+                    const disabled = hasActivePass || !!selectingId;
+                    const tier = getTier(pass);
+                    const isPro = tier === "PRO";
+
+                    return (
+                      <TouchableOpacity
+                        key={pass.id}
+                        style={[
+                          styles.variantRow,
+                          isPro && styles.variantRowPro,
+                          disabled && !isLoading && styles.passCardDisabled,
+                        ]}
+                        onPress={() => handlePassSelect(pass.id)}
+                        disabled={disabled}
+                        activeOpacity={0.85}
+                      >
+                        <View style={styles.variantLeft}>
+                          <Text style={[styles.variantTier, isPro && styles.variantTierPro]}>
+                            {isPro ? "PRO" : "REGULAR"}
+                          </Text>
+                          <Text style={styles.variantSubtitle}>
+                            {isPro ? "Exercise split included" : "Single entry pass"}
+                          </Text>
+                        </View>
+                        <View style={styles.passRight}>
+                          <View>
+                            <Text style={styles.passCurrency}>{pass.currency}</Text>
+                            <Text style={styles.passPrice}>{Math.round(Number(pass.price))}</Text>
+                          </View>
+                          <View style={styles.passCta}>
+                            {isLoading ? (
+                              <ActivityIndicator size="small" color={colors.accentInk} />
+                            ) : (
+                              <Ionicons
+                                name="arrow-forward"
+                                size={18}
+                                color={colors.accentInk}
+                              />
+                            )}
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             );
           })}
         </View>
@@ -298,40 +331,19 @@ const styles = StyleSheet.create({
   passList: {
     gap: space.md,
   },
-  passCard: {
+  passGroupCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: space.lg,
-    paddingHorizontal: space.lg,
-    overflow: "hidden",
-    position: "relative",
+    padding: space.lg,
+  },
+  passGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: space.md,
   },
   passCardDisabled: { opacity: 0.45 },
-  passDashed: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    top: "50%",
-    height: 1,
-    borderTopWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.border,
-    opacity: 0,
-  },
-  passContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  passLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 0,
-    paddingRight: space.lg,
-  },
   passInfo: {
     flex: 1,
     minWidth: 0,
@@ -368,6 +380,40 @@ const styles = StyleSheet.create({
     ...type.label,
     color: colors.textDim,
     fontSize: 10,
+    marginTop: 2,
+  },
+  variantList: {
+    gap: space.sm,
+  },
+  variantRow: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    backgroundColor: colors.surfaceAlt,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  variantRowPro: {
+    borderColor: colors.accentDim,
+  },
+  variantLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  variantTier: {
+    ...type.label,
+    color: colors.text,
+    fontSize: 11,
+  },
+  variantTierPro: {
+    color: colors.accent,
+  },
+  variantSubtitle: {
+    ...type.bodyMuted,
+    fontSize: 12,
     marginTop: 2,
   },
   passRight: {

@@ -22,56 +22,33 @@ async function main() {
     console.log(`Created gym with id: ${veersGym.id}`);
 
     // Create Pass Types for Veer's Gym
+    const baseDurations = [
+        { duration: 1, regular: 10, pro: 25 },
+        { duration: 7, regular: 50, pro: 120 },
+        { duration: 15, regular: 150, pro: 320 },
+        { duration: 30, regular: 250, pro: 550 },
+        { duration: 90, regular: 600, pro: 1350 },
+        { duration: 180, regular: 1100, pro: 2450 },
+        { duration: 365, regular: 2000, pro: 4300 },
+    ];
+
     const passTypesData = [
-        {
-            name: "1 Day Pass",
-            duration: 1,
-            price: new Decimal(10.00),
+        ...baseDurations.map((item) => ({
+            name: `${item.duration} Day Regular Pass`,
+            duration: item.duration,
+            tier: "REGULAR" as const,
+            price: new Decimal(item.regular),
             currency: "INR",
             gymId: veersGym.id,
-        },
-        {
-            name: "7 Day Pass",
-            duration: 7,
-            price: new Decimal(50.00),
+        })),
+        ...baseDurations.map((item) => ({
+            name: `${item.duration} Day Pro Membership`,
+            duration: item.duration,
+            tier: "PRO" as const,
+            price: new Decimal(item.pro),
             currency: "INR",
             gymId: veersGym.id,
-        },
-        {
-            name: "15 Day Pass",
-            duration: 15,
-            price: new Decimal(150.00),
-            currency: "INR",
-            gymId: veersGym.id,
-        },
-        {
-            name: "30 Day Pass",
-            duration: 30,
-            price: new Decimal(150.00),
-            currency: "INR",
-            gymId: veersGym.id,
-        },
-        {
-            name: "90 Day Pass",
-            duration: 90,
-            price: new Decimal(150.00),
-            currency: "INR",
-            gymId: veersGym.id,
-        },
-        {
-            name: "180 Day Pass",
-            duration: 180,
-            price: new Decimal(150.00),
-            currency: "INR",
-            gymId: veersGym.id,
-        },
-        {
-            name: "365 Day Pass",
-            duration: 365,
-            price: new Decimal(150.00),
-            currency: "INR",
-            gymId: veersGym.id,
-        },
+        })),
     ];
 
     for (const pt of passTypesData) {

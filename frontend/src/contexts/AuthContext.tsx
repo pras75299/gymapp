@@ -6,12 +6,14 @@ import { logger } from "../utils/logger";
 interface AuthContextType {
   isSignedIn: boolean;
   userId: string | null;
+  isPro: boolean;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isSignedIn: false,
   userId: null,
+  isPro: false,
   isLoading: true,
 });
 
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   } = useClerkAuth();
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => {
     gymApi.setAuthTokenGetter(
@@ -43,9 +46,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             name: user?.fullName || undefined,
             phoneNumber: user?.primaryPhoneNumber?.phoneNumber || undefined,
           });
+          const entitlement = await gymApi.getMembershipEntitlement(userId);
+          setIsPro(entitlement.isPro);
         } catch (error) {
           logger.error("Error upserting user", error);
+          setIsPro(false);
         }
+      } else {
+        setIsPro(false);
       }
       setIsLoading(false);
     };
@@ -58,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         isSignedIn,
         userId,
+        isPro,
         isLoading: isLoading || !isLoaded,
       }}
     >

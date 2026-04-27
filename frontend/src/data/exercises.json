@@ -1,0 +1,71 @@
+{
+  "maintain_weight": {
+    "with_treadmill": [
+      { "id": "mw-t-1", "name": "Treadmill brisk walk", "sets": 1, "reps": "20 min", "notes": "5-6 km/h pace" },
+      { "id": "mw-t-2", "name": "Goblet squat", "sets": 3, "reps": "12" },
+      { "id": "mw-t-3", "name": "Dumbbell bench press", "sets": 3, "reps": "10-12" },
+      { "id": "mw-t-4", "name": "Lat pulldown", "sets": 3, "reps": "12" },
+      { "id": "mw-t-5", "name": "Plank", "sets": 3, "reps": "45 sec" }
+    ],
+    "with_cycle": [
+      { "id": "mw-c-1", "name": "Stationary bike moderate ride", "sets": 1, "reps": "25 min", "notes": "Keep HR zone 2" },
+      { "id": "mw-c-2", "name": "Leg press", "sets": 3, "reps": "12" },
+      { "id": "mw-c-3", "name": "Seated row", "sets": 3, "reps": "12" },
+      { "id": "mw-c-4", "name": "Shoulder press", "sets": 3, "reps": "10" },
+      { "id": "mw-c-5", "name": "Dead bug", "sets": 3, "reps": "12/side" }
+    ],
+    "without_cardio": [
+      { "id": "mw-n-1", "name": "Bodyweight squat", "sets": 4, "reps": "15" },
+      { "id": "mw-n-2", "name": "Push-ups", "sets": 4, "reps": "10-15" },
+      { "id": "mw-n-3", "name": "Dumbbell row", "sets": 3, "reps": "12/side" },
+      { "id": "mw-n-4", "name": "Romanian deadlift", "sets": 3, "reps": "10" },
+      { "id": "mw-n-5", "name": "Side plank", "sets": 3, "reps": "30 sec/side" }
+    ]
+  },
+  "lose_weight": {
+    "with_treadmill": [
+      { "id": "lw-t-1", "name": "Treadmill incline walk", "sets": 1, "reps": "30 min", "notes": "4-8% incline" },
+      { "id": "lw-t-2", "name": "Walking lunges", "sets": 3, "reps": "14/side" },
+      { "id": "lw-t-3", "name": "Kettlebell swing", "sets": 4, "reps": "20" },
+      { "id": "lw-t-4", "name": "Cable row", "sets": 3, "reps": "12" },
+      { "id": "lw-t-5", "name": "Mountain climbers", "sets": 4, "reps": "30 sec" }
+    ],
+    "with_cycle": [
+      { "id": "lw-c-1", "name": "Bike intervals", "sets": 8, "reps": "40s hard / 20s easy" },
+      { "id": "lw-c-2", "name": "Step-ups", "sets": 3, "reps": "12/side" },
+      { "id": "lw-c-3", "name": "Dumbbell thruster", "sets": 3, "reps": "12" },
+      { "id": "lw-c-4", "name": "TRX row", "sets": 3, "reps": "12" },
+      { "id": "lw-c-5", "name": "Bicycle crunch", "sets": 3, "reps": "20/side" }
+    ],
+    "without_cardio": [
+      { "id": "lw-n-1", "name": "Jump rope", "sets": 5, "reps": "60 sec" },
+      { "id": "lw-n-2", "name": "Burpees", "sets": 4, "reps": "12" },
+      { "id": "lw-n-3", "name": "Squat to press", "sets": 3, "reps": "15" },
+      { "id": "lw-n-4", "name": "Battle rope waves", "sets": 4, "reps": "30 sec" },
+      { "id": "lw-n-5", "name": "Russian twist", "sets": 3, "reps": "20/side" }
+    ]
+  },
+  "gain_weight": {
+    "with_treadmill": [
+      { "id": "gw-t-1", "name": "Treadmill light warm-up", "sets": 1, "reps": "8 min", "notes": "Easy pace only" },
+      { "id": "gw-t-2", "name": "Back squat", "sets": 5, "reps": "6-8" },
+      { "id": "gw-t-3", "name": "Barbell bench press", "sets": 5, "reps": "6-8" },
+      { "id": "gw-t-4", "name": "Barbell row", "sets": 4, "reps": "8-10" },
+      { "id": "gw-t-5", "name": "Hanging leg raise", "sets": 3, "reps": "12" }
+    ],
+    "with_cycle": [
+      { "id": "gw-c-1", "name": "Bike warm-up", "sets": 1, "reps": "10 min", "notes": "Low intensity" },
+      { "id": "gw-c-2", "name": "Deadlift", "sets": 5, "reps": "5" },
+      { "id": "gw-c-3", "name": "Incline dumbbell press", "sets": 4, "reps": "8-10" },
+      { "id": "gw-c-4", "name": "Pull-ups/assisted pull-ups", "sets": 4, "reps": "8-10" },
+      { "id": "gw-c-5", "name": "Farmer carry", "sets": 4, "reps": "30 m" }
+    ],
+    "without_cardio": [
+      { "id": "gw-n-1", "name": "Leg press heavy", "sets": 5, "reps": "8" },
+      { "id": "gw-n-2", "name": "Dumbbell bench press", "sets": 4, "reps": "8-10" },
+      { "id": "gw-n-3", "name": "Chest supported row", "sets": 4, "reps": "10" },
+      { "id": "gw-n-4", "name": "Overhead press", "sets": 4, "reps": "8" },
+      { "id": "gw-n-5", "name": "Cable crunch", "sets": 3, "reps": "15" }
+    ]
+  }
+}

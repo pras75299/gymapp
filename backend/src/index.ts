@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { clerkMiddleware } from '@clerk/express';
+import { MembershipTier } from '@prisma/client';
 import { prisma } from './utils/prisma';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
@@ -74,7 +75,14 @@ const getGymHandler: RequestHandler<{ qrIdentifier: string }> = async (req, res,
 
     const gym = await prisma.gym.findUnique({
       where: { qrIdentifier },
-      include: { passes: true },
+      include: {
+        passes: {
+          orderBy: [
+            { duration: 'asc' },
+            { tier: 'asc' },
+          ],
+        },
+      },
     });
 
     if (!gym) {
@@ -284,6 +292,7 @@ const getActivePassesHandler: RequestHandler = async (req, res, next) => {
           select: {
             name: true,
             duration: true,
+            tier: true,
           },
         },
       },
@@ -293,6 +302,55 @@ const getActivePassesHandler: RequestHandler = async (req, res, next) => {
     });
 
     res.json(activePasses);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMembershipEntitlementHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError('User ID is required');
+    }
+
+    const activeProPass = await prisma.purchasedPass.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        paymentStatus: 'succeeded',
+        expiryDate: { gt: new Date() },
+        passType: { tier: MembershipTier.PRO },
+      },
+      include: {
+        passType: {
+          select: {
+            id: true,
+            name: true,
+            duration: true,
+            tier: true,
+            currency: true,
+            price: true,
+          },
+        },
+      },
+      orderBy: { expiryDate: 'desc' },
+    });
+
+    res.json({
+      isPro: Boolean(activeProPass),
+      activeProPass: activeProPass
+        ? {
+            id: activeProPass.id,
+            expiryDate: activeProPass.expiryDate,
+            passType: {
+              ...activeProPass.passType,
+              price: activeProPass.passType.price.toString(),
+            },
+          }
+        : null,
+    });
   } catch (error) {
     next(error);
   }
@@ -413,6 +471,7 @@ app.get('/api/validate', validate(passValidators.validateQR), validateQrCodeHand
 app.post('/api/passes/purchase', requireAuth, validate(passValidators.purchase), purchasePassHandler);
 app.post('/api/payments/confirm', requireAuth, validate(passValidators.confirmPayment), confirmPaymentHandler);
 app.get('/api/passes/active', requireAuth, getActivePassesHandler); // Must be before /api/passes/:passId/status
+app.get('/api/membership/entitlement', requireAuth, getMembershipEntitlementHandler);
 app.get('/api/passes/:passId/status', requireAuth, validate(passValidators.getStatus), getPassStatusHandler);
 app.post('/api/users/me', requireAuth, validate(userValidators.upsert), upsertUserHandler);
 

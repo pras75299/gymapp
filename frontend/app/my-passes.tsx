@@ -12,16 +12,27 @@ import QRCode from "react-native-qrcode-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { gymApi } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { PurchasedPass } from "../src/types";
+import {
+  ExerciseEquipmentBucket,
+  ExerciseGoal,
+  PurchasedPass,
+} from "../src/types";
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
 import { useAuth } from "../src/contexts/AuthContext";
 import { PASSES_POLLING_INTERVAL, ERROR_MESSAGES } from "../src/constants/app";
 import { logger } from "../src/utils/logger";
 import { colors, radius, space, type, layout } from "../src/theme";
+import {
+  EXERCISE_BUCKETS,
+  EXERCISE_GOALS,
+  getBucketLabel,
+  getExercises,
+  getGoalLabel,
+} from "../src/services/exercisePlans";
 
 export default function MyPassesScreen() {
-  const { userId } = useAuth();
+  const { userId, isPro } = useAuth();
   const [activePasses, setActivePasses] = useState<PurchasedPass[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +40,9 @@ export default function MyPassesScreen() {
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<string | null>(null);
   const [paymentCurrency, setPaymentCurrency] = useState<string | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState<ExerciseGoal>("maintain_weight");
+  const [selectedBucket, setSelectedBucket] =
+    useState<ExerciseEquipmentBucket>("with_treadmill");
   const params = useLocalSearchParams();
   const router = useRouter();
   const paymentErrorParam =
@@ -135,6 +149,8 @@ export default function MyPassesScreen() {
     setRefreshing(true);
     fetchPasses();
   }, [fetchPasses]);
+
+  const selectedExercises = getExercises(selectedGoal, selectedBucket);
 
   if (loading) {
     return (
@@ -302,6 +318,92 @@ export default function MyPassesScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        <View style={styles.planSection}>
+          <Text style={styles.planEyebrow}>Pro membership</Text>
+          <Text style={styles.planTitle}>Exercise splits</Text>
+          {isPro ? (
+            <>
+              <View style={styles.segmentRow}>
+                {EXERCISE_GOALS.map((goal) => {
+                  const active = goal === selectedGoal;
+                  return (
+                    <TouchableOpacity
+                      key={goal}
+                      style={[styles.segmentChip, active && styles.segmentChipActive]}
+                      onPress={() => setSelectedGoal(goal)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentChipText,
+                          active && styles.segmentChipTextActive,
+                        ]}
+                      >
+                        {getGoalLabel(goal)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.segmentRow}>
+                {EXERCISE_BUCKETS.map((bucket) => {
+                  const active = bucket === selectedBucket;
+                  return (
+                    <TouchableOpacity
+                      key={bucket}
+                      style={[styles.segmentChip, active && styles.segmentChipActive]}
+                      onPress={() => setSelectedBucket(bucket)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentChipText,
+                          active && styles.segmentChipTextActive,
+                        ]}
+                      >
+                        {getBucketLabel(bucket)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.exerciseList}>
+                {selectedExercises.map((exercise) => (
+                  <View key={exercise.id} style={styles.exerciseCard}>
+                    <View style={styles.exerciseHead}>
+                      <Text style={styles.exerciseName}>{exercise.name}</Text>
+                      <Text style={styles.exerciseMeta}>
+                        {exercise.sets} sets · {exercise.reps}
+                      </Text>
+                    </View>
+                    {exercise.notes ? (
+                      <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <View style={styles.proUpsellCard}>
+              <Text style={styles.proUpsellTitle}>Unlock Pro training plans</Text>
+              <Text style={styles.proUpsellText}>
+                Get goal-based exercise splits for maintain, lose, and gain
+                programs with equipment-specific options.
+              </Text>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => router.push("/pass-selection")}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="flash" size={16} color={colors.accentInk} />
+                <Text style={styles.primaryBtnText}>Upgrade to Pro</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -527,5 +629,98 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: space.md,
+  },
+  planSection: {
+    marginTop: space.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: space.xl,
+  },
+  planEyebrow: {
+    ...type.eyebrow,
+    color: colors.accent,
+    marginBottom: space.xs,
+  },
+  planTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 28,
+    marginBottom: space.lg,
+  },
+  segmentRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.sm,
+    marginBottom: space.md,
+  },
+  segmentChip: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  segmentChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: "rgba(215,254,52,0.12)",
+  },
+  segmentChipText: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  segmentChipTextActive: {
+    color: colors.accent,
+  },
+  exerciseList: {
+    marginTop: space.sm,
+    gap: space.sm,
+  },
+  exerciseCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: space.md,
+  },
+  exerciseHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: space.md,
+  },
+  exerciseName: {
+    ...type.body,
+    color: colors.text,
+    fontWeight: "700",
+    flex: 1,
+  },
+  exerciseMeta: {
+    ...type.label,
+    color: colors.accent,
+    fontSize: 10,
+  },
+  exerciseNotes: {
+    ...type.bodyMuted,
+    marginTop: 6,
+    fontSize: 12,
+  },
+  proUpsellCard: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: space.lg,
+  },
+  proUpsellTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 20,
+    marginBottom: space.sm,
+  },
+  proUpsellText: {
+    ...type.bodyMuted,
+    fontSize: 13,
   },
 });
