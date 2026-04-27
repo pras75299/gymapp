@@ -2,6 +2,7 @@ import express, { Request, Response, RequestHandler } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { clerkMiddleware } from '@clerk/express';
 import { prisma } from './utils/prisma';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
@@ -44,8 +45,8 @@ const corsOptions = {
           'http://192.168.1.17:8080',
         ];
         
-        // Also allow any 192.168.x.x IP for development
-        if (/^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
+        // Also allow any 192.168.x.x IP only in development
+        if (process.env.NODE_ENV !== 'production' && /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) {
           return callback(null, true);
         }
         
@@ -56,13 +57,14 @@ const corsOptions = {
         }
       },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 };
 
 app.use(cors(corsOptions));
 // Note: express.json() is NOT applied globally to preserve raw body for webhook verification
 // Only apply JSON parsing to routes that need it (via route-specific middleware)
+app.use(clerkMiddleware());
 app.use(requestLogger);
 
 // Define all handlers
@@ -142,14 +144,25 @@ const razorpayWebhookHandler: RequestHandler = async (req, res, next) => {
     shasum.update(rawBody);
     const digest = shasum.digest('hex');
     
-    // Parse the body for processing (after signature verification)
-    const body = JSON.parse(rawBody.toString('utf-8'));
-
     const signature = req.headers['x-razorpay-signature'] as string;
-    if (digest !== signature) {
+    if (!signature) {
+      logger.error('Missing webhook signature header');
+      throw new ValidationError('Missing webhook signature');
+    }
+
+    const digestBuffer = Buffer.from(digest, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    const signaturesMatch =
+      digestBuffer.length === signatureBuffer.length &&
+      crypto.timingSafeEqual(digestBuffer, signatureBuffer);
+
+    if (!signaturesMatch) {
       logger.error('Invalid webhook signature');
       throw new ValidationError('Invalid webhook signature');
     }
+
+    // Parse the body for processing (after signature verification)
+    const body = JSON.parse(rawBody.toString('utf-8'));
 
     const { event, payload } = body;
     logger.info('Webhook received:', { event, payloadId: payload?.payment?.entity?.id });
@@ -338,7 +351,6 @@ const validateQrCodeHandler: RequestHandler = async (req, res, next) => {
             amount: purchasedPass.amount?.toString() || null,
             currency: purchasedPass.currency,
             status: purchasedPass.paymentStatus,
-            userId: purchasedPass.userId,
           }
         : null,
     });
@@ -349,10 +361,15 @@ const validateQrCodeHandler: RequestHandler = async (req, res, next) => {
 
 const upsertUserHandler: RequestHandler = async (req, res, next) => {
   try {
-    const { id, email, name, phoneNumber } = req.body;
+    const { email, name, phoneNumber } = req.body;
+    const authenticatedUserId = req.userId;
+
+    if (!authenticatedUserId) {
+      throw new UnauthorizedError('User ID is required');
+    }
 
     const user = await prisma.user.upsert({
-      where: { id },
+      where: { id: authenticatedUserId },
       update: {
         email: email || undefined,
         name: name || undefined,
@@ -360,7 +377,7 @@ const upsertUserHandler: RequestHandler = async (req, res, next) => {
         updatedAt: new Date(),
       },
       create: {
-        id,
+        id: authenticatedUserId,
         email: email || null,
         name: name || null,
         phoneNumber: phoneNumber || null,
@@ -397,7 +414,7 @@ app.post('/api/passes/purchase', requireAuth, validate(passValidators.purchase),
 app.post('/api/payments/confirm', requireAuth, validate(passValidators.confirmPayment), confirmPaymentHandler);
 app.get('/api/passes/active', requireAuth, getActivePassesHandler); // Must be before /api/passes/:passId/status
 app.get('/api/passes/:passId/status', requireAuth, validate(passValidators.getStatus), getPassStatusHandler);
-app.post('/api/users/me', validate(userValidators.upsert), upsertUserHandler);
+app.post('/api/users/me', requireAuth, validate(userValidators.upsert), upsertUserHandler);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
-import { NotFoundError, InternalServerError, ForbiddenError } from '../utils/errors';
+import { NotFoundError, InternalServerError, ForbiddenError, ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import Razorpay from 'razorpay';
 
@@ -98,6 +98,19 @@ export async function confirmPayment(
       throw new ForbiddenError('You do not have permission to confirm payment for this pass');
     }
 
+    if (!purchasedPass.paymentIntentId) {
+      throw new ValidationError('No payment order found for this pass');
+    }
+
+    const razorpayPayment = await razorpay.payments.fetch(paymentId);
+    if (!razorpayPayment || razorpayPayment.order_id !== purchasedPass.paymentIntentId) {
+      throw new ValidationError('Payment does not belong to this pass');
+    }
+
+    if (razorpayPayment.status !== 'captured') {
+      throw new ValidationError('Payment is not captured');
+    }
+
     // Generate QR code value
     const qrCodeValue = generateQRCodeValue(purchasedPass.id);
 
@@ -111,7 +124,6 @@ export async function confirmPayment(
       where: { id: passId },
       data: {
         paymentStatus: 'succeeded',
-        paymentIntentId: paymentId,
         qrCodeValue,
         expiryDate,
         isActive: true,
@@ -133,7 +145,7 @@ export async function confirmPayment(
   } catch (error) {
     logger.error('Error confirming payment:', error);
     // Re-throw known errors (NotFoundError, ForbiddenError) as-is
-    if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+    if (error instanceof NotFoundError || error instanceof ForbiddenError || error instanceof ValidationError) {
       throw error;
     }
     throw new InternalServerError('Failed to confirm payment');

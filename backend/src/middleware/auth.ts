@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { getAuth } from '@clerk/express';
 import { UnauthorizedError } from '../utils/errors';
 
 // Extend Express Request type to include userId
@@ -11,13 +12,11 @@ declare global {
 }
 
 /**
- * Middleware to extract and validate user ID from headers
- * Note: This is a temporary solution. In production, use proper JWT/Clerk authentication
+ * Middleware to require authenticated Clerk user and attach userId.
  */
 export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const userId = req.headers['x-user-id'] as string;
-
-  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+  const { userId } = getAuth(req);
+  if (!userId) {
     throw new UnauthorizedError('User ID is required');
   }
 

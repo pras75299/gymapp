@@ -67,12 +67,6 @@ export const passValidators = {
 
 export const userValidators = {
   upsert: [
-    body('id')
-      .trim()
-      .notEmpty()
-      .withMessage('User ID is required')
-      .isString()
-      .withMessage('User ID must be a string'),
     body('email')
       .optional()
       .isEmail()
