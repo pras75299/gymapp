@@ -41,7 +41,7 @@ module.exports = ({ config }) => {
       extra: {
         // IMPORTANT: Replace this with your computer's current local IP address!
         // Use `ipconfig` (Windows) or `ifconfig` (macOS/Linux) to find it.
-        apiUrl: "http://192.168.1.17:8080/api", // Updated to current IP address
+        apiUrl: "http://192.168.0.193:8080/api", // Updated to current IP address
         // Add other custom keys if needed, e.g., EAS project ID
         // eas: {
         //   projectId: "YOUR_EAS_PROJECT_ID"
