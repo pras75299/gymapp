@@ -152,6 +152,11 @@ export default function MyPassesScreen() {
 
   const selectedExercises = getExercises(selectedGoal, selectedBucket);
 
+  const hasActiveProPass = activePasses.some(
+    (p) => p.passType?.tier === "PRO"
+  );
+  const showProExerciseSplits = isPro || hasActiveProPass;
+
   if (loading) {
     return (
       <View style={styles.stateScreen}>
@@ -322,7 +327,7 @@ export default function MyPassesScreen() {
         <View style={styles.planSection}>
           <Text style={styles.planEyebrow}>Pro membership</Text>
           <Text style={styles.planTitle}>Exercise splits</Text>
-          {isPro ? (
+          {showProExerciseSplits ? (
             <>
               <View style={styles.segmentRow}>
                 {EXERCISE_GOALS.map((goal) => {

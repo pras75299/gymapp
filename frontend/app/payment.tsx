@@ -33,7 +33,7 @@ declare global {
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { userId } = useAuth();
+  const { userId, refreshProEntitlement } = useAuth();
   const params = useLocalSearchParams<{
     passId: string;
     amount: string;
@@ -221,6 +221,7 @@ export default function PaymentScreen() {
             userId
           );
           logger.info("Payment verified successfully");
+          await refreshProEntitlement();
 
           await AsyncStorage.multiSet([
             ["lastPurchasedPassId", purchasedPassId],
