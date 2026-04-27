@@ -22,9 +22,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isSignedIn = false,
     userId = null,
     isLoaded = false,
+    getToken,
   } = useClerkAuth();
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    gymApi.setAuthTokenGetter(
+      isSignedIn ? () => getToken() : null
+    );
+  }, [isSignedIn, getToken]);
 
   useEffect(() => {
     const upsertUser = async () => {

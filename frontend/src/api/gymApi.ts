@@ -1,12 +1,13 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
-import { PurchasedPass } from '../types';
+import { PassType, PurchasedPass } from '../types';
 import { API_TIMEOUT, ERROR_MESSAGES } from '../constants/app';
 import { logger } from '../utils/logger';
 
 // Lazy-load API URL to prevent app crash at startup if not configured
 // This allows the app to initialize even if API URL is temporarily unavailable
 let cachedApiUrl: string | null = null;
+let authTokenGetter: (() => Promise<string | null>) | null = null;
 
 const getApiUrl = (): string => {
     // Return cached value if already validated
@@ -31,7 +32,7 @@ const getApiUrl = (): string => {
     
     // Cache the validated URL
     cachedApiUrl = apiUrl;
-    logger.info(`API URL configured: ${apiUrl}`);
+    logger.info('API URL configured');
     return apiUrl;
 };
 
@@ -46,7 +47,7 @@ const apiClient = axios.create({
 
 // Request interceptor for authentication and dynamic baseURL
 apiClient.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
+    async (config: InternalAxiosRequestConfig) => {
         // Set baseURL lazily when making requests
         // This allows the app to start even if API URL is not configured initially
         try {
@@ -58,11 +59,17 @@ apiClient.interceptors.request.use(
             // Don't throw here - let the individual API methods handle the error
         }
 
-        // Add auth token if available (can be extended later)
-        // const token = getAuthToken();
-        // if (token) {
-        //     config.headers.Authorization = `Bearer ${token}`;
-        // }
+        // Attach Clerk token when available.
+        if (authTokenGetter) {
+            try {
+                const token = await authTokenGetter();
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+            } catch (tokenError) {
+                logger.warn('Failed to attach auth token', tokenError);
+            }
+        }
         return config;
     },
     (error) => {
@@ -154,6 +161,10 @@ export class ApiError extends Error {
 }
 
 export const gymApi = {
+    setAuthTokenGetter: (getter: (() => Promise<string | null>) | null) => {
+        authTokenGetter = getter;
+    },
+
     getGymByQrIdentifier: async (qrIdentifier: string): Promise<Gym> => {
         // Validate API URL before making request
         try {
@@ -205,12 +216,9 @@ export const gymApi = {
             throw new ApiError(ERROR_MESSAGES.API_NOT_CONFIGURED);
         }
         
-        logger.debug(`Purchasing pass: ${passId}`, { userId, deviceId });
+        logger.debug(`Purchasing pass: ${passId}`, { userId });
         try {
-            const response = await apiClient.post('/passes/purchase', 
-                { passId, deviceId },
-                { headers: { 'x-user-id': userId } }
-            );
+            const response = await apiClient.post('/passes/purchase', { passId, deviceId });
             logger.info('Pass purchase initiated', { passId, status: response.status });
             return response.data;
         } catch (error) {
@@ -239,9 +247,7 @@ export const gymApi = {
 
         logger.debug(`Fetching pass status for ID: ${passId}`, { userId });
         try {
-            const response = await apiClient.get(`/passes/${passId}/status`, {
-                headers: { 'x-user-id': userId }
-            });
+            const response = await apiClient.get(`/passes/${passId}/status`);
             logger.debug('Pass status received', { passId, status: response.data?.status });
             return response.data;
         } catch (error) {
@@ -268,12 +274,11 @@ export const gymApi = {
             throw new ApiError(ERROR_MESSAGES.API_NOT_CONFIGURED);
         }
         
-        logger.info(`Confirming payment for pass: ${passId}`, { paymentId, userId });
+        logger.info(`Confirming payment for pass: ${passId}`, { userId });
         try {
             const response = await apiClient.post(
                 '/payments/confirm', 
-                { passId, paymentId },
-                { headers: { 'x-user-id': userId } }
+                { passId, paymentId }
             );
 
             if (response.status !== 200) {
@@ -285,7 +290,7 @@ export const gymApi = {
                 throw new ApiError('Payment confirmation failed');
             }
 
-            logger.info('Payment confirmed successfully', { passId, paymentId });
+            logger.info('Payment confirmed successfully', { passId });
         } catch (error) {
             logger.error('Error confirming payment', error);
             if (axios.isAxiosError(error)) {
@@ -318,9 +323,6 @@ export const gymApi = {
         try {
             const response = await apiClient.get(`/passes/active`, {
                 params: { deviceId },
-                headers: {
-                    'x-user-id': userId
-                },
                 timeout: 8000, // 8 seconds timeout
             });
             logger.debug('Active passes received', { count: response.data?.length || 0 });
@@ -389,9 +391,13 @@ export const gymApi = {
         logger.debug('Upserting user', { userId: userData.id });
         try {
             // Use a shorter timeout for user upsert since it's not critical
-            const response = await apiClient.post('/users/me', userData, {
-                timeout: 5000, // 5 seconds instead of 10
-            });
+            const response = await apiClient.post(
+                '/users/me',
+                userData,
+                {
+                    timeout: 5000, // 5 seconds instead of 10
+                }
+            );
             logger.debug('User upserted successfully', { userId: response.data?.id });
             return response.data;
         } catch (error) {
