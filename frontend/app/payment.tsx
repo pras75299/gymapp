@@ -127,6 +127,7 @@ export default function PaymentScreen() {
 
     setPurchasedPassId(trimmedPassId);
 
+    // Route `amount` is Razorpay order total in smallest currency unit (e.g. paise for INR).
     const content = `
       <!DOCTYPE html>
       <html>
@@ -145,7 +146,7 @@ export default function PaymentScreen() {
 
             const options = {
               key: '${escapeForJsString(trimmedKeyId)}',
-              amount: ${Math.round(numericAmount * 100)},
+              amount: ${Math.round(numericAmount)},
               currency: '${escapeForJsString(normalizedCurrency)}',
               name: "Gym Pass",
               order_id: '${escapeForJsString(trimmedOrderId)}',
