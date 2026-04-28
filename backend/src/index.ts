@@ -3,11 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { clerkMiddleware } from '@clerk/express';
-import { MembershipTier } from '@prisma/client';
+import { MembershipTier, EntryTokenAction, PassOccupancyStatus, Prisma } from '@prisma/client';
 import { prisma } from './utils/prisma';
 import { requestLogger } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
-import { requireAuth } from './middleware/auth';
+import { requireAuth, requireStaff } from './middleware/auth';
+import { createRouteRateLimiter } from './middleware/rateLimit';
 import { validate, gymValidators, passValidators, userValidators } from './middleware/validators';
 import {
   NotFoundError,
@@ -29,6 +30,88 @@ dotenv.config();
 
 const app = express();
 const port = parseInt(process.env.PORT || '8080', 10);
+const isDevelopment = process.env.NODE_ENV === 'development';
+const entryTokenSecret = process.env.ENTRY_TOKEN_SECRET;
+if (!entryTokenSecret && !isDevelopment) {
+  throw new Error('ENTRY_TOKEN_SECRET must be configured outside development');
+}
+const resolvedEntryTokenSecret = entryTokenSecret || 'dev-entry-token-secret';
+const entryTokenTtlSeconds = parseInt(process.env.ENTRY_TOKEN_TTL_SECONDS || '45', 10);
+const allowPublicValidation = process.env.ALLOW_PUBLIC_VALIDATION === 'true';
+const validationRateLimiter = createRouteRateLimiter({
+  windowMs: parseInt(process.env.VALIDATION_RATE_LIMIT_WINDOW_MS || '60000', 10),
+  maxRequests: parseInt(process.env.VALIDATION_RATE_LIMIT_MAX_REQUESTS || '30', 10),
+  keyPrefix: 'validation-routes',
+});
+if (!entryTokenSecret && isDevelopment) {
+  logger.warn('ENTRY_TOKEN_SECRET is not configured. Using development fallback secret.');
+}
+if (allowPublicValidation) {
+  logger.warn('ALLOW_PUBLIC_VALIDATION is enabled. Validation endpoints are public and less secure.');
+}
+
+type EntryTokenPayload = {
+  passId: string;
+  userId: string;
+  gymId: string;
+  tier: MembershipTier;
+  iat: number;
+  exp: number;
+  jti: string;
+};
+
+function toBase64Url(value: string): string {
+  return Buffer.from(value, 'utf8').toString('base64url');
+}
+
+function fromBase64Url(value: string): string {
+  return Buffer.from(value, 'base64url').toString('utf8');
+}
+
+function signEntryToken(payload: EntryTokenPayload): string {
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac('sha256', resolvedEntryTokenSecret)
+    .update(encodedPayload)
+    .digest('base64url');
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyEntryToken(token: string): EntryTokenPayload {
+  const [encodedPayload, signature] = token.split('.');
+  if (!encodedPayload || !signature) {
+    throw new ValidationError('Invalid entry token format');
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', resolvedEntryTokenSecret)
+    .update(encodedPayload)
+    .digest('base64url');
+
+  const signatureBuffer = Buffer.from(signature, 'utf8');
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+  const signaturesMatch =
+    signatureBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
+
+  if (!signaturesMatch) {
+    throw new ValidationError('Invalid entry token signature');
+  }
+
+  let payload: EntryTokenPayload;
+  try {
+    payload = JSON.parse(fromBase64Url(encodedPayload)) as EntryTokenPayload;
+  } catch {
+    throw new ValidationError('Invalid entry token payload');
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (!payload.exp || payload.exp <= now) {
+    throw new ValidationError('Entry token expired');
+  }
+
+  return payload;
+}
 
 // CORS configuration
 const corsOptions = {
@@ -356,6 +439,214 @@ const getMembershipEntitlementHandler: RequestHandler = async (req, res, next) =
   }
 };
 
+const createEntryTokenHandler: RequestHandler<{ passId: string }> = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const { passId } = req.params;
+
+    if (!userId) {
+      throw new UnauthorizedError('User ID is required');
+    }
+
+    const purchasedPass = await prisma.purchasedPass.findUnique({
+      where: { id: passId },
+      include: { passType: true },
+    });
+
+    if (!purchasedPass) {
+      throw new NotFoundError('Purchased pass', passId);
+    }
+
+    if (purchasedPass.userId !== userId) {
+      throw new ForbiddenError('Unauthorized access to pass');
+    }
+
+    if (
+      !purchasedPass.isActive ||
+      purchasedPass.paymentStatus !== 'succeeded' ||
+      purchasedPass.expiryDate <= new Date()
+    ) {
+      throw new ValidationError('Pass is not active for entry');
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const payload: EntryTokenPayload = {
+      passId: purchasedPass.id,
+      userId: purchasedPass.userId,
+      gymId: purchasedPass.passType.gymId,
+      tier: purchasedPass.passType.tier,
+      iat: now,
+      exp: now + entryTokenTtlSeconds,
+      jti: crypto.randomUUID(),
+    };
+    const token = signEntryToken(payload);
+
+    res.json({
+      token,
+      expiresAt: new Date(payload.exp * 1000).toISOString(),
+      ttlSeconds: entryTokenTtlSeconds,
+      passId: purchasedPass.id,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const validateEntryTokenHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const { token, consume, action } = req.body as {
+      token?: string;
+      consume?: boolean;
+      action?: 'entry' | 'exit';
+    };
+    if (!token || typeof token !== 'string') {
+      throw new ValidationError('Entry token is required');
+    }
+
+    const payload = verifyEntryToken(token);
+
+    const shouldConsume = consume === true;
+    const scanAction: 'entry' | 'exit' = action === 'exit' ? 'exit' : 'entry';
+
+    const purchasedPass = await prisma.purchasedPass.findUnique({
+      where: { id: payload.passId },
+      include: {
+        passType: true,
+        user: true,
+      },
+    });
+
+    if (!purchasedPass) {
+      throw new NotFoundError('Purchased pass', payload.passId);
+    }
+
+    const isValid =
+      purchasedPass.userId === payload.userId &&
+      purchasedPass.passType.gymId === payload.gymId &&
+      purchasedPass.passType.tier === payload.tier &&
+      purchasedPass.isActive &&
+      purchasedPass.paymentStatus === 'succeeded' &&
+      purchasedPass.expiryDate > new Date();
+
+    if (!isValid) {
+      throw new ValidationError('Entry token validation failed');
+    }
+
+    const now = new Date();
+    const tokenExpiresAt = new Date(payload.exp * 1000);
+    const consumedTokenAction = scanAction === 'entry' ? EntryTokenAction.ENTRY : EntryTokenAction.EXIT;
+
+    const resolveOccupancy = async (currentStatus: PassOccupancyStatus): Promise<PassOccupancyStatus> => {
+      if (scanAction === 'entry' && currentStatus === PassOccupancyStatus.INSIDE) {
+        throw new ValidationError('Member is already marked as inside');
+      }
+      if (scanAction === 'exit' && currentStatus === PassOccupancyStatus.OUTSIDE) {
+        throw new ValidationError('Member is already marked as outside');
+      }
+      return scanAction === 'entry' ? PassOccupancyStatus.INSIDE : PassOccupancyStatus.OUTSIDE;
+    };
+
+    let finalOccupancyStatus: PassOccupancyStatus;
+    let currentOccupancyStatus: PassOccupancyStatus = PassOccupancyStatus.OUTSIDE;
+
+    if (shouldConsume) {
+      if (tokenExpiresAt <= now) {
+        throw new ValidationError('Entry token expired');
+      }
+
+      let result: { currentStatus: PassOccupancyStatus; nextStatus: PassOccupancyStatus };
+      try {
+        result = await prisma.$transaction(async (tx) => {
+          // Emulate TTL semantics by pruning expired replay keys before check.
+          await tx.consumedEntryToken.deleteMany({
+            where: {
+              expiresAt: { lte: now },
+            },
+          });
+
+          const alreadyUsed = await tx.consumedEntryToken.findUnique({
+            where: { jti: payload.jti },
+          });
+          if (alreadyUsed) {
+            throw new ValidationError('Entry token already used');
+          }
+
+          const occupancy = await tx.passOccupancy.findUnique({
+            where: { passId: payload.passId },
+          });
+          const currentStatus = occupancy?.status ?? PassOccupancyStatus.OUTSIDE;
+          const nextStatus = await resolveOccupancy(currentStatus);
+
+          await tx.consumedEntryToken.create({
+            data: {
+              jti: payload.jti,
+              passId: payload.passId,
+              userId: payload.userId,
+              action: consumedTokenAction,
+              expiresAt: tokenExpiresAt,
+            },
+          });
+
+          await tx.passOccupancy.upsert({
+            where: { passId: payload.passId },
+            create: {
+              passId: payload.passId,
+              status: nextStatus,
+              lastActionAt: now,
+            },
+            update: {
+              status: nextStatus,
+              lastActionAt: now,
+            },
+          });
+
+          return { currentStatus, nextStatus };
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ValidationError('Entry token already used');
+        }
+        throw error;
+      }
+
+      currentOccupancyStatus = result.currentStatus;
+      finalOccupancyStatus = result.nextStatus;
+    } else {
+      const occupancy = await prisma.passOccupancy.findUnique({
+        where: { passId: payload.passId },
+      });
+      currentOccupancyStatus = occupancy?.status ?? PassOccupancyStatus.OUTSIDE;
+      finalOccupancyStatus = await resolveOccupancy(currentOccupancyStatus);
+    }
+
+    res.json({
+      valid: true,
+      consumed: shouldConsume,
+      action: scanAction,
+      occupancy: shouldConsume
+        ? finalOccupancyStatus.toLowerCase()
+        : currentOccupancyStatus.toLowerCase(),
+      pass: {
+        id: purchasedPass.id,
+        type: purchasedPass.passType.name,
+        tier: purchasedPass.passType.tier,
+        expiryDate: purchasedPass.expiryDate,
+      },
+      member: allowPublicValidation
+        ? undefined
+        : {
+            id: purchasedPass.user.id,
+            name: purchasedPass.user.name,
+            email: purchasedPass.user.email,
+            phoneNumber: purchasedPass.user.phoneNumber,
+          },
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const validateQrCodeHandler: RequestHandler = async (req, res, next) => {
   try {
     const { pass_id } = req.query;
@@ -384,33 +675,26 @@ const validateQrCodeHandler: RequestHandler = async (req, res, next) => {
       purchasedPass.paymentStatus === 'succeeded' &&
       expiryDate > now;
 
-    // Calculate remaining time
-    const remainingMs = expiryDate.getTime() - now.getTime();
-    const remainingHours = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60)));
-    const remainingMinutes = Math.max(0, Math.ceil(remainingMs / (1000 * 60)));
-
     logger.info('Pass validation result:', {
       passId: pass_id,
       isValid,
-      remainingHours,
       status: purchasedPass.paymentStatus,
     });
 
     res.json({
       valid: isValid,
       error: isValid ? null : 'Pass is invalid or expired',
-      details: isValid
+      passId: purchasedPass.id,
+      expiryDate: purchasedPass.expiryDate,
+      details: allowPublicValidation
         ? {
             passType: purchasedPass.passType.name,
             purchaseDate: purchasedPass.purchaseDate,
-            expiryDate: purchasedPass.expiryDate,
-            remainingHours,
-            remainingMinutes,
             amount: purchasedPass.amount?.toString() || null,
             currency: purchasedPass.currency,
             status: purchasedPass.paymentStatus,
           }
-        : null,
+        : undefined,
     });
   } catch (error) {
     next(error);
@@ -462,15 +746,32 @@ app.get('/', (req, res) => {
   res.json({ message: 'GymLogic API', status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Public routes
+// Public route
 app.get('/api/gym/:qrIdentifier', validate(gymValidators.getGymDetails), getGymHandler);
-app.get('/api/validate', validate(passValidators.validateQR), validateQrCodeHandler);
+const validationAccessMiddlewares: RequestHandler[] = allowPublicValidation
+  ? []
+  : [requireAuth, requireStaff];
+app.get(
+  '/api/validate',
+  ...validationAccessMiddlewares,
+  validationRateLimiter,
+  validate(passValidators.validateQR),
+  validateQrCodeHandler
+);
+app.post(
+  '/api/validate-entry',
+  ...validationAccessMiddlewares,
+  validationRateLimiter,
+  validate(passValidators.validateEntryToken),
+  validateEntryTokenHandler
+);
 
 // Protected routes (require authentication)
 // IMPORTANT: Specific routes must be defined before parameterized routes to prevent incorrect matching
 app.post('/api/passes/purchase', requireAuth, validate(passValidators.purchase), purchasePassHandler);
 app.post('/api/payments/confirm', requireAuth, validate(passValidators.confirmPayment), confirmPaymentHandler);
 app.get('/api/passes/active', requireAuth, getActivePassesHandler); // Must be before /api/passes/:passId/status
+app.post('/api/passes/:passId/entry-token', requireAuth, validate(passValidators.createEntryToken), createEntryTokenHandler);
 app.get('/api/membership/entitlement', requireAuth, getMembershipEntitlementHandler);
 app.get('/api/passes/:passId/status', requireAuth, validate(passValidators.getStatus), getPassStatusHandler);
 app.post('/api/users/me', requireAuth, validate(userValidators.upsert), upsertUserHandler);

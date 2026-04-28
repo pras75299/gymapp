@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { Ionicons } from "@expo/vector-icons";
+import { usePreventScreenCapture } from "expo-screen-capture";
 import { gymApi } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -22,7 +23,11 @@ import {
 import { useLocalSearchParams } from "expo-router";
 import { useRouter } from "expo-router";
 import { useAuth } from "../src/contexts/AuthContext";
-import { PASSES_POLLING_INTERVAL, ERROR_MESSAGES } from "../src/constants/app";
+import {
+  ENTRY_TOKEN_REFRESH_INTERVAL,
+  PASSES_POLLING_INTERVAL,
+  ERROR_MESSAGES,
+} from "../src/constants/app";
 import { logger } from "../src/utils/logger";
 import { colors, radius, space, type, layout } from "../src/theme";
 import {
@@ -39,6 +44,7 @@ import {
 } from "../src/services/exercisePlans";
 
 export default function MyPassesScreen() {
+  usePreventScreenCapture();
   const { userId, isPro } = useAuth();
   const [activePasses, setActivePasses] = useState<PurchasedPass[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +58,10 @@ export default function MyPassesScreen() {
     useState<ExerciseEquipmentBucket>("with_treadmill");
   const [selectedBodyPart, setSelectedBodyPart] =
     useState<ExerciseBodyPart>("mix");
+  const [entryTokensByPassId, setEntryTokensByPassId] = useState<
+    Record<string, string>
+  >({});
+  const [entryTokenError, setEntryTokenError] = useState<string | null>(null);
   const params = useLocalSearchParams();
   const router = useRouter();
   const paymentErrorParam =
@@ -97,6 +107,9 @@ export default function MyPassesScreen() {
       const fetchedPasses = await gymApi.getActivePasses(deviceId, userId);
       setActivePasses(fetchedPasses);
       activePassesRef.current = fetchedPasses;
+      if (fetchedPasses.length === 0) {
+        setEntryTokensByPassId({});
+      }
 
       if (fetchedPasses.length === 0) {
         const storedPasses = await AsyncStorage.getItem("activePasses");
@@ -158,6 +171,47 @@ export default function MyPassesScreen() {
     setRefreshing(true);
     fetchPasses();
   }, [fetchPasses]);
+
+  const refreshEntryTokens = useCallback(async () => {
+    if (!userId || activePasses.length === 0) {
+      return;
+    }
+
+    try {
+      const tokenResults = await Promise.all(
+        activePasses.map(async (pass) => {
+          const tokenResponse = await gymApi.createEntryToken(pass.id, userId);
+          return [pass.id, tokenResponse.token] as const;
+        })
+      );
+
+      setEntryTokensByPassId(
+        tokenResults.reduce<Record<string, string>>((acc, [passId, token]) => {
+          acc[passId] = token;
+          return acc;
+        }, {})
+      );
+      setEntryTokenError(null);
+    } catch (err) {
+      setEntryTokensByPassId({});
+      setEntryTokenError("Unable to refresh entry QR. Tap retry to load it again.");
+      logger.warn("Failed to refresh one-time entry tokens", err);
+    }
+  }, [activePasses, userId]);
+
+  useEffect(() => {
+    refreshEntryTokens();
+  }, [refreshEntryTokens]);
+
+  useEffect(() => {
+    if (activePasses.length === 0 || !userId) {
+      return;
+    }
+    const interval = setInterval(() => {
+      refreshEntryTokens();
+    }, ENTRY_TOKEN_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [activePasses.length, refreshEntryTokens, userId]);
 
   const selectedExercises =
     selectedBodyPart === "mix"
@@ -297,11 +351,11 @@ export default function MyPassesScreen() {
                 </View>
               </View>
 
-              {pass.qrCodeValue && (
+              {entryTokensByPassId[pass.id] && (
                 <View style={styles.qrWrap}>
                   <View style={styles.qrFrame}>
                     <QRCode
-                      value={pass.qrCodeValue}
+                      value={entryTokensByPassId[pass.id]}
                       size={200}
                       backgroundColor="#FFFFFF"
                       color={colors.accentInk}
@@ -310,6 +364,21 @@ export default function MyPassesScreen() {
                   <Text style={styles.qrCaption}>
                     SHOW AT GYM ENTRANCE
                   </Text>
+                </View>
+              )}
+              {!entryTokensByPassId[pass.id] && (
+                <View style={styles.entryTokenWarning}>
+                  <Text style={styles.entryTokenWarningText}>
+                    Entry QR unavailable right now.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.retryTokenBtn}
+                    onPress={refreshEntryTokens}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="refresh" size={14} color={colors.accent} />
+                    <Text style={styles.retryTokenBtnText}>Retry</Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -346,6 +415,12 @@ export default function MyPassesScreen() {
             </TouchableOpacity>
           </View>
         )}
+        {entryTokenError ? (
+          <View style={styles.entryTokenBanner}>
+            <Ionicons name="warning-outline" size={16} color={colors.danger} />
+            <Text style={styles.entryTokenBannerText}>{entryTokenError}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.planSection}>
           <Text style={styles.planEyebrow}>Pro membership</Text>
@@ -620,6 +695,53 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 11,
     marginTop: space.md,
+  },
+  entryTokenWarning: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    padding: space.md,
+    alignItems: "center",
+    gap: space.sm,
+    marginBottom: space.sm,
+  },
+  entryTokenWarningText: {
+    ...type.bodyMuted,
+    textAlign: "center",
+    fontSize: 12,
+  },
+  retryTokenBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.pill,
+  },
+  retryTokenBtnText: {
+    ...type.label,
+    color: colors.accent,
+    fontSize: 11,
+  },
+  entryTokenBanner: {
+    marginBottom: space.md,
+    padding: space.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: radius.sm,
+    backgroundColor: "rgba(255,72,72,0.12)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  entryTokenBannerText: {
+    ...type.bodyMuted,
+    color: colors.text,
+    fontSize: 12,
+    flex: 1,
   },
   divider: {
     width: "100%",

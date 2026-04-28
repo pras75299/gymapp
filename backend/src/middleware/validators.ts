@@ -56,6 +56,30 @@ export const passValidators = {
       .isString()
       .withMessage('Pass ID must be a string'),
   ],
+  createEntryToken: [
+    param('passId')
+      .trim()
+      .notEmpty()
+      .withMessage('Pass ID is required')
+      .isString()
+      .withMessage('Pass ID must be a string'),
+  ],
+  validateEntryToken: [
+    body('token')
+      .trim()
+      .notEmpty()
+      .withMessage('Entry token is required')
+      .isString()
+      .withMessage('Entry token must be a string'),
+    body('consume')
+      .optional()
+      .isBoolean()
+      .withMessage('Consume must be a boolean'),
+    body('action')
+      .optional()
+      .isIn(['entry', 'exit'])
+      .withMessage('Action must be either entry or exit'),
+  ],
   validateQR: [
     query('pass_id')
       .notEmpty()

@@ -19,6 +19,16 @@ enum MembershipTier {
   PRO
 }
 
+enum EntryTokenAction {
+  ENTRY
+  EXIT
+}
+
+enum PassOccupancyStatus {
+  INSIDE
+  OUTSIDE
+}
+
 model Gym {
   id           String     @id @default(cuid())
   name         String
@@ -71,4 +81,27 @@ model PurchasedPass {
   currency        String   @default("INR") // Currency of the payment
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  consumedEntryTokens ConsumedEntryToken[]
+  occupancy       PassOccupancy?
+}
+
+model ConsumedEntryToken {
+  jti        String           @id
+  passId     String
+  userId     String
+  action     EntryTokenAction
+  expiresAt  DateTime
+  consumedAt DateTime         @default(now())
+  pass       PurchasedPass    @relation(fields: [passId], references: [id], onDelete: Cascade)
+
+  @@index([passId])
+  @@index([expiresAt])
+}
+
+model PassOccupancy {
+  passId      String              @id
+  status      PassOccupancyStatus @default(OUTSIDE)
+  updatedAt   DateTime            @updatedAt
+  lastActionAt DateTime           @default(now())
+  pass        PurchasedPass       @relation(fields: [passId], references: [id], onDelete: Cascade)
 }

@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
-import { PassType, ProMembershipEntitlement, PurchasedPass } from '../types';
+import { EntryTokenResponse, PassType, ProMembershipEntitlement, PurchasedPass } from '../types';
 import { API_TIMEOUT, ERROR_MESSAGES } from '../constants/app';
 import { logger } from '../utils/logger';
 
@@ -173,7 +173,7 @@ export const gymApi = {
             throw new ApiError(ERROR_MESSAGES.API_NOT_CONFIGURED);
         }
 
-        logger.debug(`Fetching gym for QR: ${qrIdentifier}`);
+        logger.debug('Fetching gym for QR');
         try {
             const response = await apiClient.get(`/gym/${qrIdentifier}`, {
                 timeout: 8000, // 8 seconds timeout
@@ -245,10 +245,10 @@ export const gymApi = {
             throw new ApiError(ERROR_MESSAGES.API_NOT_CONFIGURED);
         }
 
-        logger.debug(`Fetching pass status for ID: ${passId}`, { userId });
+        logger.debug('Fetching pass status');
         try {
             const response = await apiClient.get(`/passes/${passId}/status`);
-            logger.debug('Pass status received', { passId, status: response.data?.status });
+            logger.debug('Pass status received', { status: response.data?.status });
             return response.data;
         } catch (error) {
             logger.error('Error fetching pass status', error);
@@ -346,6 +346,35 @@ export const gymApi = {
             }
             logger.error('Error fetching active passes', error);
             throw new ApiError(ERROR_MESSAGES.FETCH_ACTIVE_PASSES_FAILED);
+        }
+    },
+
+    createEntryToken: async (passId: string, userId: string): Promise<EntryTokenResponse> => {
+        if (!userId) throw new Error(ERROR_MESSAGES.USER_ID_REQUIRED);
+
+        try {
+            getApiUrl();
+        } catch (error) {
+            throw new ApiError(ERROR_MESSAGES.API_NOT_CONFIGURED);
+        }
+
+        logger.debug('Creating entry token');
+        try {
+            const response = await apiClient.post(`/passes/${passId}/entry-token`);
+            return response.data;
+        } catch (error) {
+            logger.error('Error creating entry token', error);
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+                if (status === 401 || status === 403) {
+                    throw new ApiError('Please sign in to generate entry QR');
+                } else if (status === 404) {
+                    throw new ApiError('Pass not found');
+                } else if (status === 400) {
+                    throw new ApiError(error.response?.data?.message || 'Pass is not active for entry');
+                }
+            }
+            throw new ApiError('Failed to generate entry QR');
         }
     },
 

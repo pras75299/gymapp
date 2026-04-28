@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { gymApi, PassStatus } from "../src/api/gymApi";
+import { usePreventScreenCapture } from "expo-screen-capture";
 import {
   API_POLLING_INTERVAL,
   API_POLLING_MAX_ATTEMPTS,
@@ -21,6 +22,7 @@ import { useAuth } from "../src/contexts/AuthContext";
 import { colors, radius, space, type, layout } from "../src/theme";
 
 export default function SuccessScreen() {
+  usePreventScreenCapture();
   const { passId } = useLocalSearchParams<{ passId: string }>();
   const { userId } = useAuth();
   const router = useRouter();
@@ -159,7 +161,7 @@ export default function SuccessScreen() {
         <Text style={styles.eyebrow}>Confirmed · Show at entrance</Text>
         <Text style={styles.title}>
           Welcome.{"\n"}
-          <Text style={styles.titleAccent}>You're in.</Text>
+          <Text style={styles.titleAccent}>You&apos;re in.</Text>
         </Text>
 
         <View style={styles.ticket}>

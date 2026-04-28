@@ -5,6 +5,7 @@ export const API_TIMEOUT = 10000; // 10 seconds
 export const API_POLLING_INTERVAL = 2000; // 2 seconds
 export const API_POLLING_MAX_ATTEMPTS = 10;
 export const PASSES_POLLING_INTERVAL = 30000; // 30 seconds
+export const ENTRY_TOKEN_REFRESH_INTERVAL = 30000; // 30 seconds
 
 // Payment Configuration
 export const PAYMENT_MANUAL_CLOSE_TIMEOUT = 30000; // 30 seconds

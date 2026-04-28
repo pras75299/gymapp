@@ -84,4 +84,11 @@ export interface PurchasedPass {
   paymentStatus: 'pending' | 'succeeded' | 'failed';
   qrCodeValue?: string;
   isActive: boolean;
-} 
+}
+
+export interface EntryTokenResponse {
+  token: string;
+  expiresAt: string;
+  ttlSeconds: number;
+  passId: string;
+}

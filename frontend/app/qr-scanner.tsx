@@ -21,6 +21,27 @@ import {
 import { logger } from "../src/utils/logger";
 import { colors, radius, space, type, layout } from "../src/theme";
 
+const getAllowedValidationHosts = (): string[] => {
+  const configuredHosts = QR_CODE_VALIDATION_DOMAIN.split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+    .map((value) => {
+      try {
+        return new URL(value).hostname.toLowerCase();
+      } catch {
+        return value;
+      }
+    });
+
+  return Array.from(new Set(configuredHosts));
+};
+
+const isAllowedValidationHost = (hostname: string): boolean => {
+  const normalizedHostname = hostname.trim().toLowerCase();
+  const allowedHosts = getAllowedValidationHosts();
+  return allowedHosts.includes(normalizedHostname);
+};
+
 export default function QRScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -60,7 +81,7 @@ export default function QRScannerScreen() {
         qrData.startsWith("http://") || qrData.startsWith("https://");
 
       if (!isUrl) {
-        logger.debug("Scanning gym QR code", { qrIdentifier: qrData });
+        logger.debug("Scanning gym QR code");
         try {
           await gymApi.getGymByQrIdentifier(qrData);
           router.replace({
@@ -76,16 +97,16 @@ export default function QRScannerScreen() {
       let url: URL;
       try {
         url = new URL(qrData);
-      } catch (err) {
+      } catch {
         throw new Error(ERROR_MESSAGES.INVALID_QR_FORMAT);
       }
 
-      if (!url.origin.includes(QR_CODE_VALIDATION_DOMAIN)) {
-        logger.warn("QR code from unknown source", { origin: url.origin });
+      if (!isAllowedValidationHost(url.hostname)) {
+        logger.warn("QR code from unknown source");
         throw new Error(ERROR_MESSAGES.INVALID_QR_SOURCE);
       }
 
-      logger.debug("Validating pass QR code", { url: url.toString() });
+      logger.debug("Validating pass QR code");
       const response = await fetch(url.toString());
       const data = await response.json();
 
@@ -180,7 +201,7 @@ export default function QRScannerScreen() {
           Align the QR code inside the frame.
         </Text>
         <Text style={styles.helperSub}>
-          Holds steady? You'll be on your pass selection in a moment.
+          Holds steady? You&apos;ll be on your pass selection in a moment.
         </Text>
       </View>
 
@@ -200,7 +221,7 @@ export default function QRScannerScreen() {
             <View style={styles.modalIconError}>
               <Ionicons name="alert" size={26} color={colors.danger} />
             </View>
-            <Text style={styles.modalTitle}>Couldn't scan</Text>
+            <Text style={styles.modalTitle}>Couldn&apos;t scan</Text>
             <Text style={styles.modalText}>{error}</Text>
             <TouchableOpacity
               style={styles.primaryBtn}

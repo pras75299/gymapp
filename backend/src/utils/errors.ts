@@ -35,6 +35,12 @@ export class ForbiddenError extends AppError {
   }
 }
 
+export class TooManyRequestsError extends AppError {
+  constructor(message: string = 'Too many requests') {
+    super(429, message);
+  }
+}
+
 export class InternalServerError extends AppError {
   constructor(message: string = 'Internal server error', details?: unknown) {
     super(500, message, details);
