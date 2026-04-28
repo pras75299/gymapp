@@ -15,17 +15,20 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useSignIn, useUser, useClerk } from "@clerk/clerk-expo";
+import { useOAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gymApi } from "../../src/api/gymApi";
 import { ERROR_MESSAGES, USER_ERROR_MESSAGES } from "../../src/constants/app";
 import { logger } from "../../src/utils/logger";
 import { colors, radius, space, type, layout } from "../../src/theme";
+import { useWarmUpBrowser } from "../../src/hooks/useWarmUpBrowser";
 
 export default function SignInScreen() {
   const router = useRouter();
   const { isSignedIn, userId } = useAuth();
   const { signIn, setActive } = useSignIn();
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
   const { user } = useUser();
   const clerk = useClerk();
   const [email, setEmail] = useState("");
@@ -33,6 +36,7 @@ export default function SignInScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  useWarmUpBrowser();
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -121,6 +125,28 @@ export default function SignInScreen() {
     } catch (error) {
       logger.error("Sign in error", error);
       setError("Failed to sign in. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const { createdSessionId, setActive: setOAuthActive } = await startOAuthFlow({
+        redirectUrl:
+          process.env.EXPO_PUBLIC_OAUTH_CALLBACK_URL ||
+          "exp://localhost:19000/oauth-callback",
+      });
+
+      if (createdSessionId && setOAuthActive) {
+        await setOAuthActive({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (oauthError) {
+      logger.error("Google OAuth sign in error", oauthError);
+      setError("Failed to sign in with Google. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -228,7 +254,7 @@ export default function SignInScreen() {
 
             <TouchableOpacity
               style={styles.googleBtn}
-              onPress={() => router.push("/sign-in-with-oauth")}
+              onPress={handleGoogleSignIn}
               activeOpacity={0.85}
             >
               <Ionicons name="logo-google" size={18} color={colors.text} />

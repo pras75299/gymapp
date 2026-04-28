@@ -8,13 +8,41 @@ export type ExerciseEquipmentBucket =
   | "with_treadmill"
   | "with_cycle"
   | "without_cardio";
+export type ExerciseBodyPart =
+  | "mix"
+  | "back"
+  | "chest"
+  | "shoulders"
+  | "legs"
+  | "biceps_triceps"
+  | "core";
+
+export type ExerciseMediaType = "youtube" | "image";
+
+export interface ExerciseMediaResource {
+  type: ExerciseMediaType;
+  url: string;
+  title?: string;
+  thumbnailUrl?: string;
+}
 
 export interface ExerciseItem {
   id: string;
   name: string;
   sets: number;
   reps: string;
+  bodyPart?: ExerciseBodyPart;
   notes?: string;
+  /** Between working sets, e.g. "60–90s" */
+  rest?: string;
+  /** Primary muscles / pattern */
+  targetMuscles?: string;
+  /** How to perform safely and effectively */
+  detail?: string;
+  /** Same stimulus if equipment is taken or you prefer a swap */
+  alternatives?: string[];
+  /** Optional media learning resources (video or image demos) */
+  media?: ExerciseMediaResource[];
 }
 
 export type ExerciseBucketMap = Record<ExerciseEquipmentBucket, ExerciseItem[]>;

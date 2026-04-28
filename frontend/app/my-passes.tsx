@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   Text,
+  Linking,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { gymApi } from "../src/api/gymApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  ExerciseBodyPart,
   ExerciseEquipmentBucket,
   ExerciseGoal,
   PurchasedPass,
@@ -24,11 +26,16 @@ import { PASSES_POLLING_INTERVAL, ERROR_MESSAGES } from "../src/constants/app";
 import { logger } from "../src/utils/logger";
 import { colors, radius, space, type, layout } from "../src/theme";
 import {
+  EXERCISE_BODY_PARTS,
   EXERCISE_BUCKETS,
   EXERCISE_GOALS,
+  getBodyPartExerciseOptions,
   getBucketLabel,
+  getBodyPartLabel,
+  getExerciseBodyPart,
   getExercises,
   getGoalLabel,
+  getLearningResources,
 } from "../src/services/exercisePlans";
 
 export default function MyPassesScreen() {
@@ -43,6 +50,8 @@ export default function MyPassesScreen() {
   const [selectedGoal, setSelectedGoal] = useState<ExerciseGoal>("maintain_weight");
   const [selectedBucket, setSelectedBucket] =
     useState<ExerciseEquipmentBucket>("with_treadmill");
+  const [selectedBodyPart, setSelectedBodyPart] =
+    useState<ExerciseBodyPart>("mix");
   const params = useLocalSearchParams();
   const router = useRouter();
   const paymentErrorParam =
@@ -150,7 +159,21 @@ export default function MyPassesScreen() {
     fetchPasses();
   }, [fetchPasses]);
 
-  const selectedExercises = getExercises(selectedGoal, selectedBucket);
+  const selectedExercises =
+    selectedBodyPart === "mix"
+      ? getExercises(selectedGoal, selectedBucket)
+      : getBodyPartExerciseOptions(selectedGoal, selectedBucket, selectedBodyPart);
+  const openLearningResource = useCallback(async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        throw new Error("Cannot open exercise resource");
+      }
+      await Linking.openURL(url);
+    } catch (err) {
+      logger.error("Failed to open exercise learning resource", err);
+    }
+  }, []);
 
   const hasActiveProPass = activePasses.some(
     (p) => p.passType?.tier === "PRO"
@@ -375,18 +398,97 @@ export default function MyPassesScreen() {
                 })}
               </View>
 
+              <View style={styles.segmentRow}>
+                {EXERCISE_BODY_PARTS.map((bodyPart) => {
+                  const active = bodyPart === selectedBodyPart;
+                  return (
+                    <TouchableOpacity
+                      key={bodyPart}
+                      style={[styles.segmentChip, active && styles.segmentChipActive]}
+                      onPress={() => setSelectedBodyPart(bodyPart)}
+                      activeOpacity={0.85}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentChipText,
+                          active && styles.segmentChipTextActive,
+                        ]}
+                      >
+                        {getBodyPartLabel(bodyPart)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <View style={styles.exerciseList}>
+                {selectedExercises.length === 0 ? (
+                  <View style={styles.exerciseEmptyCard}>
+                    <Text style={styles.exerciseEmptyTitle}>
+                      No exercises in this focus yet
+                    </Text>
+                    <Text style={styles.exerciseEmptyText}>
+                      Switch to `Mix` or try another equipment setup to see more
+                      options for this goal.
+                    </Text>
+                  </View>
+                ) : null}
                 {selectedExercises.map((exercise) => (
                   <View key={exercise.id} style={styles.exerciseCard}>
                     <View style={styles.exerciseHead}>
-                      <Text style={styles.exerciseName}>{exercise.name}</Text>
+                      <View style={styles.exerciseTitleWrap}>
+                        <Text style={styles.exerciseName}>{exercise.name}</Text>
+                        <View style={styles.exerciseFocusPill}>
+                          <Text style={styles.exerciseFocusPillText}>
+                            {getBodyPartLabel(getExerciseBodyPart(exercise))}
+                          </Text>
+                        </View>
+                      </View>
                       <Text style={styles.exerciseMeta}>
                         {exercise.sets} sets · {exercise.reps}
+                        {exercise.rest ? ` · rest ${exercise.rest}` : ""}
                       </Text>
                     </View>
+                    {exercise.targetMuscles ? (
+                      <Text style={styles.exerciseTarget}>
+                        {exercise.targetMuscles}
+                      </Text>
+                    ) : null}
+                    {exercise.detail ? (
+                      <Text style={styles.exerciseDetail}>{exercise.detail}</Text>
+                    ) : null}
                     {exercise.notes ? (
                       <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
                     ) : null}
+                    {exercise.alternatives && exercise.alternatives.length > 0 ? (
+                      <View style={styles.altBlock}>
+                        <Text style={styles.altLabel}>Swaps / options</Text>
+                        {exercise.alternatives.map((alt, idx) => (
+                          <Text key={`${exercise.id}-alt-${idx}`} style={styles.altItem}>
+                            · {alt}
+                          </Text>
+                        ))}
+                      </View>
+                    ) : null}
+                    <View style={styles.mediaRow}>
+                      {getLearningResources(exercise).slice(0, 2).map((resource, idx) => (
+                        <TouchableOpacity
+                          key={`${exercise.id}-resource-${idx}`}
+                          style={styles.mediaButton}
+                          activeOpacity={0.85}
+                          onPress={() => openLearningResource(resource.url)}
+                        >
+                          <Ionicons
+                            name={resource.type === "youtube" ? "logo-youtube" : "image-outline"}
+                            size={14}
+                            color={colors.accent}
+                          />
+                          <Text style={styles.mediaButtonText}>
+                            {resource.title ?? "How to perform"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -690,6 +792,9 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   exerciseHead: {
+    gap: space.sm,
+  },
+  exerciseTitleWrap: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -706,10 +811,97 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 10,
   },
+  exerciseFocusPill: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  exerciseFocusPillText: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 9,
+  },
+  exerciseTarget: {
+    ...type.label,
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 4,
+    lineHeight: 15,
+  },
+  exerciseDetail: {
+    ...type.body,
+    color: colors.text,
+    fontSize: 13,
+    marginTop: 8,
+    lineHeight: 19,
+  },
   exerciseNotes: {
     ...type.bodyMuted,
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 12,
+    lineHeight: 17,
+  },
+  altBlock: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  altLabel: {
+    ...type.label,
+    color: colors.accent,
+    fontSize: 10,
+    marginBottom: 4,
+    letterSpacing: 0.6,
+  },
+  altItem: {
+    ...type.bodyMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  mediaRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  mediaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.bg,
+  },
+  mediaButtonText: {
+    ...type.label,
+    color: colors.accent,
+    fontSize: 10,
+  },
+  exerciseEmptyCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    padding: space.lg,
+  },
+  exerciseEmptyTitle: {
+    ...type.display,
+    color: colors.text,
+    fontSize: 18,
+    marginBottom: space.xs,
+  },
+  exerciseEmptyText: {
+    ...type.bodyMuted,
+    fontSize: 13,
+    lineHeight: 18,
   },
   proUpsellCard: {
     borderWidth: 1,

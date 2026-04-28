@@ -1,71 +1,772 @@
 {
   "maintain_weight": {
     "with_treadmill": [
-      { "id": "mw-t-1", "name": "Treadmill brisk walk", "sets": 1, "reps": "20 min", "notes": "5-6 km/h pace" },
-      { "id": "mw-t-2", "name": "Goblet squat", "sets": 3, "reps": "12" },
-      { "id": "mw-t-3", "name": "Dumbbell bench press", "sets": 3, "reps": "10-12" },
-      { "id": "mw-t-4", "name": "Lat pulldown", "sets": 3, "reps": "12" },
-      { "id": "mw-t-5", "name": "Plank", "sets": 3, "reps": "45 sec" }
+      {
+        "id": "mw-t-1",
+        "name": "Treadmill zone-2 walk or jog",
+        "sets": 1,
+        "reps": "25–35 min",
+        "rest": "steady block",
+        "targetMuscles": "Cardiovascular system, quads, calves, posture",
+        "notes": "Effort you could repeat weekly—breathing up, still able to speak in short phrases.",
+        "detail": "3 min easy warm-up. Build to a steady pace (often ~5–7 km/h flat, or slower with 1–3% incline for comfort). Keep ribs stacked over pelvis, light hands on rails only if needed for balance.",
+        "alternatives": ["Elliptical moderate steady", "Outdoor brisk walk", "Incline walk 2–4% same duration"]
+      },
+      {
+        "id": "mw-t-2",
+        "name": "Goblet squat",
+        "sets": 3,
+        "reps": "10–12",
+        "rest": "75–120s",
+        "targetMuscles": "Quads, glutes, core; squat pattern",
+        "detail": "Hold one dumbbell or kettlebell at chest. Feet shoulder-width, toes slightly out. Brace core, sit hips down between hips until thighs are near parallel (or as deep as pain-free). Drive feet into floor to stand—knees track over toes.",
+        "alternatives": ["Leg press machine", "Hack squat", "Bodyweight squat to box"],
+        "media": [
+          {
+            "type": "youtube",
+            "title": "Goblet squat tutorial",
+            "url": "https://www.youtube.com/results?search_query=goblet+squat+proper+form+tutorial"
+          }
+        ]
+      },
+      {
+        "id": "mw-t-3",
+        "name": "Dumbbell bench press",
+        "sets": 3,
+        "reps": "8–12",
+        "rest": "90s",
+        "targetMuscles": "Chest, front delts, triceps",
+        "detail": "Shoulder blades pinched slightly down and together on the bench. Press over mid-chest; elbows ~45° from ribs at bottom. Stop 1–2 reps before form breaks—quality over max load.",
+        "alternatives": ["Machine chest press", "Push-ups (incline if needed)", "Cable crossover low-to-high"]
+      },
+      {
+        "id": "mw-t-4",
+        "name": "Lat pulldown (neutral or pronated)",
+        "sets": 3,
+        "reps": "10–14",
+        "rest": "75s",
+        "targetMuscles": "Lats, mid-back, biceps",
+        "detail": "Thighs fixed under pad. Start with slight lean from tall torso, pull bar to upper chest by driving elbows toward hips. Control the return—full stretch at top without shrugging shoulders to ears.",
+        "alternatives": ["Assisted pull-up", "Seated cable row", "Single-arm DB row"]
+      },
+      {
+        "id": "mw-t-5",
+        "name": "Romanian deadlift (DB or bar)",
+        "sets": 3,
+        "reps": "8–10",
+        "rest": "90–120s",
+        "targetMuscles": "Hamstrings, glutes, lower back isometric",
+        "detail": "Soft knees, hinge at hips pushing butt back while bar or DBs stay close to legs. Stop when you feel a strong hamstring stretch—not when lower back rounds. Squeeze glutes to finish tall; avoid hyperextending spine at top.",
+        "alternatives": ["Cable pull-through", "Glute bridge / hip thrust", "Good morning (light, strict)"]
+      },
+      {
+        "id": "mw-t-6",
+        "name": "Half-kneeling single-arm cable press",
+        "sets": 3,
+        "reps": "10/side",
+        "rest": "60s",
+        "targetMuscles": "Shoulders, core anti-rotation",
+        "detail": "Knee down under cable stack, glutes squeezed on rear leg. Press handle forward without torso twisting—ribs down. Full extension without shrugging; control stack on return.",
+        "alternatives": ["Seated DB shoulder press", "Landmine press", "Machine shoulder press"]
+      },
+      {
+        "id": "mw-t-7",
+        "name": "Face pull or band pull-apart",
+        "sets": 3,
+        "reps": "15–20",
+        "rest": "45s",
+        "targetMuscles": "Rear delts, mid traps, external rotators",
+        "detail": "Elbows high, pull rope toward face separating hands at end range—think ‘thumbs pointing behind you.’ No leaning back; small weight, high quality reps for shoulder health.",
+        "alternatives": ["Reverse pec deck", "Cable reverse fly", "Prone Y raises on bench"]
+      },
+      {
+        "id": "mw-t-8",
+        "name": "Dead bug or side plank",
+        "sets": 3,
+        "reps": "8/side or 30–40s/side",
+        "rest": "45s",
+        "targetMuscles": "Deep core, obliques (side plank)",
+        "detail": "Dead bug: low back pressed to floor, slow opposite arm/leg extension without arching. Side plank: elbow under shoulder, hips stacked, squeeze glutes—modify with knees bent if needed.",
+        "alternatives": ["Pallof press", "Bird dog", "Front plank on forearms"]
+      }
     ],
     "with_cycle": [
-      { "id": "mw-c-1", "name": "Stationary bike moderate ride", "sets": 1, "reps": "25 min", "notes": "Keep HR zone 2" },
-      { "id": "mw-c-2", "name": "Leg press", "sets": 3, "reps": "12" },
-      { "id": "mw-c-3", "name": "Seated row", "sets": 3, "reps": "12" },
-      { "id": "mw-c-4", "name": "Shoulder press", "sets": 3, "reps": "10" },
-      { "id": "mw-c-5", "name": "Dead bug", "sets": 3, "reps": "12/side" }
+      {
+        "id": "mw-c-1",
+        "name": "Stationary bike steady ride",
+        "sets": 1,
+        "reps": "25–40 min",
+        "rest": "steady",
+        "targetMuscles": "Quads, glutes, cardio",
+        "notes": "Moderate resistance; smooth cadence ~70–90 RPM typical.",
+        "detail": "5 min gradual warm-up. Set resistance so legs work but you can maintain rhythm and nasal or controlled mouth breathing. Every 8–10 min add 10–20s slightly harder ‘push’ then settle back.",
+        "alternatives": ["Recumbent bike", "Air bike easy-moderate", "Spin bike with seated climbs"]
+      },
+      {
+        "id": "mw-c-2",
+        "name": "Leg press",
+        "sets": 3,
+        "reps": "12–15",
+        "rest": "90s",
+        "targetMuscles": "Quads, glutes",
+        "detail": "Feet mid-platform, hip-width. Lower until thighs approach parallel without pelvis rounding off pad. Press without locking knees violently; keep even pressure through full foot.",
+        "alternatives": ["Hack squat", "Smith squat (controlled)", "Goblet squat"]
+      },
+      {
+        "id": "mw-c-3",
+        "name": "Seated cable row",
+        "sets": 3,
+        "reps": "10–12",
+        "rest": "75s",
+        "targetMuscles": "Lats, rhomboids, biceps",
+        "detail": "Neutral spine, slight lean from hips OK. Pull handle to lower ribs/sternum, squeeze shoulder blades at end. Return with protraction under control—no jerking torso.",
+        "alternatives": ["Chest-supported machine row", "Single-arm cable row", "T-bar row"]
+      },
+      {
+        "id": "mw-c-4",
+        "name": "Machine or DB shoulder press",
+        "sets": 3,
+        "reps": "8–12",
+        "rest": "75s",
+        "targetMuscles": "Delts, upper chest (slight), triceps",
+        "detail": "Brace core; press mostly vertical so wrists finish over shoulders not in front of face. Full range without bouncing—stop if lower back arches excessively (reduce weight or use back support).",
+        "alternatives": ["Landmine press", "Arnold press (light)", "Plate front raise + press combo"]
+      },
+      {
+        "id": "mw-c-5",
+        "name": "Lying leg curl",
+        "sets": 3,
+        "reps": "12–15",
+        "rest": "60s",
+        "targetMuscles": "Hamstrings",
+        "detail": "Align knee joint with machine axis. Control the negative—2–3 sec lowering. Avoid snapping or cutting range short; pause 1 sec at peak contraction.",
+        "alternatives": ["Stability ball leg curl", "Nordic curl (eccentric focus)", "Cable hamstring curl"]
+      },
+      {
+        "id": "mw-c-6",
+        "name": "Cable triceps pushdown (rope)",
+        "sets": 3,
+        "reps": "12–15",
+        "rest": "45s",
+        "targetMuscles": "Triceps",
+        "detail": "Elbows pinned at sides, extend fully spreading rope ends at bottom without shoulders rolling forward. Upper arm stays vertical throughout.",
+        "alternatives": ["Overhead cable extension", "DB skull crusher", "Bench dip (controlled)"]
+      },
+      {
+        "id": "mw-c-7",
+        "name": "Pallof press",
+        "sets": 3,
+        "reps": "12/side",
+        "rest": "45s",
+        "targetMuscles": "Obliques, deep core",
+        "detail": "Stand perpendicular to cable, hands at sternum. Press arms straight out resisting rotation—hips and shoulders square. Slow return; exhale on press.",
+        "alternatives": ["Dead bug", "Side plank", "Anti-rotation walkout"]
+      },
+      {
+        "id": "mw-c-8",
+        "name": "Calf raise (seated or standing)",
+        "sets": 3,
+        "reps": "15–20",
+        "rest": "45s",
+        "targetMuscles": "Gastrocnemius, soleus",
+        "detail": "Full stretch at bottom, 1–2 sec pause at top. Standing bias gastroc; seated bias soleus—mix across weeks if both available.",
+        "alternatives": ["Leg press calf press", "Single-leg bodyweight calf", "Smith machine calf"]
+      }
     ],
     "without_cardio": [
-      { "id": "mw-n-1", "name": "Bodyweight squat", "sets": 4, "reps": "15" },
-      { "id": "mw-n-2", "name": "Push-ups", "sets": 4, "reps": "10-15" },
-      { "id": "mw-n-3", "name": "Dumbbell row", "sets": 3, "reps": "12/side" },
-      { "id": "mw-n-4", "name": "Romanian deadlift", "sets": 3, "reps": "10" },
-      { "id": "mw-n-5", "name": "Side plank", "sets": 3, "reps": "30 sec/side" }
+      {
+        "id": "mw-n-1",
+        "name": "Bodyweight or goblet squat",
+        "sets": 4,
+        "reps": "12–20",
+        "rest": "60–90s",
+        "targetMuscles": "Quads, glutes, core",
+        "detail": "Tempo 2–1–2 optional: controlled down, no bounce out of bottom. If knees cave, cue ‘spread the floor’ with feet. Add load only when depth and torso angle stay consistent.",
+        "alternatives": ["Box squat to touch", "Split squat static", "Wall sit finisher 30–45s"]
+      },
+      {
+        "id": "mw-n-2",
+        "name": "Push-up (floor or incline)",
+        "sets": 4,
+        "reps": "AMRAP quality sets",
+        "rest": "60s",
+        "targetMuscles": "Chest, shoulders, triceps, core",
+        "detail": "Hands under shoulders, body line from head to heels. Lower chest between hands; elbows ~30–45° from torso. Incline on bench/Smith bar if full floor reps aren’t clean yet.",
+        "alternatives": ["DB floor press", "Machine chest press", "Cable press from split stance"]
+      },
+      {
+        "id": "mw-n-3",
+        "name": "Single-arm dumbbell row",
+        "sets": 3,
+        "reps": "10–12/side",
+        "rest": "75s",
+        "targetMuscles": "Lats, mid-back, biceps",
+        "detail": "Flat back, hand on bench. Row toward hip pocket, not straight up—elbow tracks back. Minimize torso rotation; let the arm do the work.",
+        "alternatives": ["Chest-supported incline row", "Cable single row", "Meadows row"]
+      },
+      {
+        "id": "mw-n-4",
+        "name": "Romanian deadlift",
+        "sets": 3,
+        "reps": "8–12",
+        "rest": "90s",
+        "targetMuscles": "Hamstrings, glutes, erectors (isometric)",
+        "detail": "Same hinge rules as treadmill variant—bar or DBs close, neutral spine, feel hamstrings load before standing tall with glutes (not hyperextending low back).",
+        "alternatives": ["Single-leg RDL (light)", "Good morning PVC", "Hip thrust"]
+      },
+      {
+        "id": "mw-n-5",
+        "name": "Walking lunge",
+        "sets": 3,
+        "reps": "10–12/leg",
+        "rest": "90s",
+        "targetMuscles": "Quads, glutes, balance",
+        "detail": "Short to medium steps to keep front knee over ankle-ish, not crashing past toes. Torso tall; use DBs at sides if stable. Stop set if knee pain—try reverse lunge in place instead.",
+        "alternatives": ["Reverse lunge", "Step-up", "Bulgarian split squat"]
+      },
+      {
+        "id": "mw-n-6",
+        "name": "Plank (forearm or high)",
+        "sets": 3,
+        "reps": "40–60s",
+        "rest": "45s",
+        "targetMuscles": "Anterior core, shoulders",
+        "detail": "Elbows under shoulders, squeeze glutes and quads, ribs down—no sagging hips or piked butt. Breathe shallow into sides, not holding breath entire hold.",
+        "alternatives": ["Dead bug", "Bear plank shoulder tap", "Ab wheel rollout (short range)"]
+      },
+      {
+        "id": "mw-n-7",
+        "name": "Farmer carry",
+        "sets": 3,
+        "reps": "30–40m",
+        "rest": "60s",
+        "targetMuscles": "Grip, traps, core, legs",
+        "detail": "Heavy but walkable DBs or kettlebells. Tall posture, short quick steps. Put weights down with hinge, not rounded back.",
+        "alternatives": ["Suitcase carry one arm", "Trap-bar carry", "Plate pinch walk (short)"]
+      },
+      {
+        "id": "mw-n-8",
+        "name": "Side plank",
+        "sets": 3,
+        "reps": "30–45s/side",
+        "rest": "45s",
+        "targetMuscles": "Obliques, lateral hip",
+        "detail": "Elbow under shoulder, feet stacked or staggered for stability. Lift hips in one line; breathe. Bottom knee down modification is fine.",
+        "alternatives": ["Copenhagen side plank (beginner short lever)", "Cable side bend (light)", "Pallof press"]
+      }
     ]
   },
   "lose_weight": {
     "with_treadmill": [
-      { "id": "lw-t-1", "name": "Treadmill incline walk", "sets": 1, "reps": "30 min", "notes": "4-8% incline" },
-      { "id": "lw-t-2", "name": "Walking lunges", "sets": 3, "reps": "14/side" },
-      { "id": "lw-t-3", "name": "Kettlebell swing", "sets": 4, "reps": "20" },
-      { "id": "lw-t-4", "name": "Cable row", "sets": 3, "reps": "12" },
-      { "id": "lw-t-5", "name": "Mountain climbers", "sets": 4, "reps": "30 sec" }
+      {
+        "id": "lw-t-1",
+        "name": "Incline treadmill walk",
+        "sets": 1,
+        "reps": "30–45 min",
+        "rest": "steady",
+        "targetMuscles": "Glutes, quads, calves, cardio",
+        "notes": "Higher incline often lets you burn more at a walkable speed vs flat running for many people.",
+        "detail": "Warm-up 5 min flat. Incline 6–12% (start lower if new); brisk walk 3.5–5.5 km/h typical. Posture tall—don’t lean heavily on handles (light touch OK). Cool down 3–5 min lowering incline gradually.",
+        "alternatives": ["Hill intervals 1 min up / 1 min down", "Weighted vest walk (if appropriate)", "Stair climber moderate"]
+      },
+      {
+        "id": "lw-t-2",
+        "name": "Walking lunges or reverse lunges",
+        "sets": 3,
+        "reps": "12–16/leg",
+        "rest": "75s",
+        "targetMuscles": "Quads, glutes, conditioning",
+        "detail": "Control the descent—knee tracks over foot. Add DBs only if balance is solid. Reverse lunges in place are easier on knees for some athletes.",
+        "alternatives": ["Step-ups alternating", "Bulgarian split squat", "Sled push if gym has turf"]
+      },
+      {
+        "id": "lw-t-3",
+        "name": "Kettlebell swing",
+        "sets": 4,
+        "reps": "15–20",
+        "rest": "60–90s",
+        "targetMuscles": "Glutes, hamstrings, grip, power",
+        "detail": "Hinge pattern—not a squat. Power from hip snap at top; arms are ropes. Stop before lower back takes over (reduce reps or weight). Russian swing to eye level is fine for most gyms.",
+        "alternatives": ["DB swing", "Cable pull-through fast", "Med ball slam (if floor allows)"],
+        "media": [
+          {
+            "type": "youtube",
+            "title": "Kettlebell swing setup and form",
+            "url": "https://www.youtube.com/results?search_query=kettlebell+swing+proper+form+beginner"
+          }
+        ]
+      },
+      {
+        "id": "lw-t-4",
+        "name": "Cable row or seated row",
+        "sets": 3,
+        "reps": "12–15",
+        "rest": "60s",
+        "targetMuscles": "Back, biceps",
+        "detail": "Full stretch, strong pull without torso throw. Pair with metabolic work this session—keep rows crisp, not sloppy for ‘more burn’.",
+        "alternatives": ["Lat pulldown", "Chest-supported row", "Inverted row on Smith"]
+      },
+      {
+        "id": "lw-t-5",
+        "name": "Goblet squat (continuous tension)",
+        "sets": 3,
+        "reps": "15–20",
+        "rest": "60s",
+        "targetMuscles": "Legs, core",
+        "detail": "Moderate weight, smooth reps without locking out hard at top each rep if you want more time under tension—or full lock every rep if preferred. Keep elbows inside knees at bottom to open hips.",
+        "alternatives": ["Leg press higher reps", "Wall sit 45–60s", "Air squat tabata-style (advanced)"]
+      },
+      {
+        "id": "lw-t-6",
+        "name": "Push-up or DB floor press",
+        "sets": 3,
+        "reps": "12–20 or AMRAP",
+        "rest": "60s",
+        "targetMuscles": "Chest, triceps, core",
+        "detail": "Metabolic-friendly: shorter rest acceptable if form stays strict. Stop 2 reps shy of breakdown to protect shoulders.",
+        "alternatives": ["Incline push-up", "Cable chest press high tempo", "Machine dip (assisted)"]
+      },
+      {
+        "id": "lw-t-7",
+        "name": "Mountain climbers",
+        "sets": 4,
+        "reps": "30–40s",
+        "rest": "45s",
+        "targetMuscles": "Core, shoulders, hip flexors, conditioning",
+        "detail": "Hands under shoulders, hips low-ish like plank start. Drive knees toward chest rhythmically without piking hips to ceiling. Slow tempo if low back feels it.",
+        "alternatives": ["High knees in place", "Bear crawl", "Battle rope alternating waves"]
+      },
+      {
+        "id": "lw-t-8",
+        "name": "Finisher: treadmill walk-out",
+        "sets": 1,
+        "reps": "8–12 min easy",
+        "rest": "N/A",
+        "targetMuscles": "Recovery, blood flow",
+        "detail": "After lifting, easy flat walk to bring heart rate down gradually—supports recovery vs stopping cold after hard intervals.",
+        "alternatives": ["Slow bike spin-down", "Light stretching lower body", "Breathing walk outdoors"]
+      }
     ],
     "with_cycle": [
-      { "id": "lw-c-1", "name": "Bike intervals", "sets": 8, "reps": "40s hard / 20s easy" },
-      { "id": "lw-c-2", "name": "Step-ups", "sets": 3, "reps": "12/side" },
-      { "id": "lw-c-3", "name": "Dumbbell thruster", "sets": 3, "reps": "12" },
-      { "id": "lw-c-4", "name": "TRX row", "sets": 3, "reps": "12" },
-      { "id": "lw-c-5", "name": "Bicycle crunch", "sets": 3, "reps": "20/side" }
+      {
+        "id": "lw-c-1",
+        "name": "Bike intervals (HIIT-style)",
+        "sets": 8,
+        "reps": "40s hard / 20s easy",
+        "rest": "built into rounds",
+        "targetMuscles": "Legs, cardio, power endurance",
+        "notes": "Hard = strong resistance + fast cadence you can still control safely.",
+        "detail": "10 min warm-up progressive. During ‘hard’: stay seated unless you’re experienced standing climbs. ‘Easy’ is active recovery—not zero resistance. Cool down 5 min spin easy.",
+        "alternatives": ["30/30 x 12–15 rounds", "4×4 min threshold with 2 min easy", "Tabata 20/10 x 8 (very hard—optional)"]
+      },
+      {
+        "id": "lw-c-2",
+        "name": "Step-ups (controlled)",
+        "sets": 3,
+        "reps": "12–15/leg",
+        "rest": "60s",
+        "targetMuscles": "Glutes, quads, single-leg stability",
+        "detail": "Use bench or box at or slightly below knee height. Drive through heel/top foot; avoid pushing off bottom leg. Control down—don’t crash.",
+        "alternatives": ["Lateral box step-over", "Single-leg leg press", "Deficit reverse lunge"]
+      },
+      {
+        "id": "lw-c-3",
+        "name": "Dumbbell thruster",
+        "sets": 3,
+        "reps": "10–12",
+        "rest": "90s",
+        "targetMuscles": "Legs, shoulders, arms, conditioning",
+        "detail": "Front squat depth with DBs at shoulders, then drive up into overhead press one fluid motion. Light–moderate load; breathe: exhale on press portion.",
+        "alternatives": ["Kettlebell clean to press", "Wall ball (if available)", "Squat to push press barbell light"]
+      },
+      {
+        "id": "lw-c-4",
+        "name": "TRX or ring row",
+        "sets": 3,
+        "reps": "12–15",
+        "rest": "60s",
+        "targetMuscles": "Upper back, biceps, core",
+        "detail": "Body straight like plank, pull chest to handles. Walk feet in for harder angle. Squeeze shoulder blades; don’t hip-hinge cheat.",
+        "alternatives": ["Seated cable row", "Inverted row Smith", "Lat pulldown"]
+      },
+      {
+        "id": "lw-c-5",
+        "name": "Leg press (tempo)",
+        "sets": 3,
+        "reps": "15–18",
+        "rest": "75s",
+        "targetMuscles": "Quads, glutes",
+        "detail": "3-1-2 tempo optional: 3 sec lower, 1 sec pause bottom, 2 sec up. Huge metabolic leg pump without jumping—joint-friendly for many.",
+        "alternatives": ["Hack squat", "Smith front squat (light)", "Wall sit after last set"]
+      },
+      {
+        "id": "lw-c-6",
+        "name": "Battle rope waves (alternating)",
+        "sets": 4,
+        "reps": "25–35s",
+        "rest": "45s",
+        "targetMuscles": "Shoulders, arms, core, conditioning",
+        "detail": "Athletic stance, slight hinge. Move ropes with whole body, not just arms. Stop if shoulders burn sloppy—quality waves.",
+        "alternatives": ["Slam ball overhead slam", "Assault bike sprint 15s", "Jump rope intervals"]
+      },
+      {
+        "id": "lw-c-7",
+        "name": "Bicycle crunch or dead bug",
+        "sets": 3,
+        "reps": "20–30 slow total",
+        "rest": "45s",
+        "targetMuscles": "Rectus abdominis, obliques",
+        "detail": "Slow bicycle: elbow meets opposite knee, extend fully other side without jerking neck. Hands support head, don’t pull neck forward.",
+        "alternatives": ["Cable woodchop", "Hanging knee raise", "Russian twist (slow, light)"]
+      },
+      {
+        "id": "lw-c-8",
+        "name": "Finisher: steady spin",
+        "sets": 1,
+        "reps": "10 min easy",
+        "rest": "N/A",
+        "targetMuscles": "Active recovery",
+        "detail": "Low resistance, nasal breathing if possible—closes session and aids recovery.",
+        "alternatives": ["Walk", "Light stretch sequence"]
+      }
     ],
     "without_cardio": [
-      { "id": "lw-n-1", "name": "Jump rope", "sets": 5, "reps": "60 sec" },
-      { "id": "lw-n-2", "name": "Burpees", "sets": 4, "reps": "12" },
-      { "id": "lw-n-3", "name": "Squat to press", "sets": 3, "reps": "15" },
-      { "id": "lw-n-4", "name": "Battle rope waves", "sets": 4, "reps": "30 sec" },
-      { "id": "lw-n-5", "name": "Russian twist", "sets": 3, "reps": "20/side" }
+      {
+        "id": "lw-n-1",
+        "name": "Jump rope (or phantom if no rope)",
+        "sets": 5,
+        "reps": "45–60s on / 30s off",
+        "rest": "30s between rounds",
+        "targetMuscles": "Calves, coordination, cardio",
+        "detail": "Small jumps, wrists spin rope. Land softly on forefoot. High knees or boxer skip for variety. Mat if indoors to protect joints.",
+        "alternatives": ["Jumping jacks", "High knees in place", "Quick feet ladder drills"]
+      },
+      {
+        "id": "lw-n-2",
+        "name": "Burpee (step-back version)",
+        "sets": 4,
+        "reps": "8–12",
+        "rest": "75s",
+        "targetMuscles": "Full body, conditioning",
+        "detail": "Hands down, step back to plank (not flop), optional push-up, step feet in, stand or small jump. Safer on wrists and low back than explosive chest-to-floor for many.",
+        "alternatives": ["Squat thrust no push-up", "Up-down plank", "Row erg sprint 30s"]
+      },
+      {
+        "id": "lw-n-3",
+        "name": "Squat to dumbbell press",
+        "sets": 3,
+        "reps": "12–15",
+        "rest": "75s",
+        "targetMuscles": "Legs, shoulders, arms",
+        "detail": "DBs at shoulders, squat deep enough for you, drive up and press overhead in one motion. Light weight for crisp reps.",
+        "alternatives": ["Kettlebell swing + goblet hold", "Sandbag clean to press", "Med ball squat throw (wall)"]
+      },
+      {
+        "id": "lw-n-4",
+        "name": "Battle rope or slam ball circuit",
+        "sets": 4,
+        "reps": "30s work",
+        "rest": "30s",
+        "targetMuscles": "Conditioning, core, shoulders",
+        "detail": "Alternate waves with slams every other round if equipment allows. Keep ribs down during slams—power from hips.",
+        "alternatives": ["DB clean high-pull light", "Shadow boxing with 1–2 kg", "Sled push"]
+      },
+      {
+        "id": "lw-n-5",
+        "name": "Kettlebell or DB swing",
+        "sets": 4,
+        "reps": "20",
+        "rest": "60s",
+        "targetMuscles": "Posterior chain, grip",
+        "detail": "Same hinge coaching as maintain block—this is a power cardio hybrid. Stop set if grip or back fails first.",
+        "alternatives": ["Romanian deadlift fast concentric (light)", "Hip thrust burn-out high reps"]
+      },
+      {
+        "id": "lw-n-6",
+        "name": "Renegade row",
+        "sets": 3,
+        "reps": "8/side",
+        "rest": "75s",
+        "targetMuscles": "Back, core anti-extension, arms",
+        "detail": "Plank on DBs, feet wide for base. Row one DB without rotating hips—widen stance more if needed. Light–moderate load.",
+        "alternatives": ["Bird dog row", "Plank shoulder tap", "Single-arm cable row standing"]
+      },
+      {
+        "id": "lw-n-7",
+        "name": "Walking lunge finisher",
+        "sets": 2,
+        "reps": "20 steps total",
+        "rest": "90s between sets",
+        "targetMuscles": "Legs, glutes",
+        "detail": "Bodyweight or light DBs. Last block of session—form over speed.",
+        "alternatives": ["Wall sit 60s x2", "Bodyweight squat pulses 30s x3"]
+      },
+      {
+        "id": "lw-n-8",
+        "name": "Russian twist (slow, weighted optional)",
+        "sets": 3,
+        "reps": "16–24 total",
+        "rest": "45s",
+        "targetMuscles": "Obliques",
+        "detail": "Feet down or up for harder. Rotate through mid-back, not just flailing arms. Light plate or med ball; quality rotation.",
+        "alternatives": ["Cable Pallof rotation", "Side plank thread-through", "Dead bug iso hold"]
+      }
     ]
   },
   "gain_weight": {
     "with_treadmill": [
-      { "id": "gw-t-1", "name": "Treadmill light warm-up", "sets": 1, "reps": "8 min", "notes": "Easy pace only" },
-      { "id": "gw-t-2", "name": "Back squat", "sets": 5, "reps": "6-8" },
-      { "id": "gw-t-3", "name": "Barbell bench press", "sets": 5, "reps": "6-8" },
-      { "id": "gw-t-4", "name": "Barbell row", "sets": 4, "reps": "8-10" },
-      { "id": "gw-t-5", "name": "Hanging leg raise", "sets": 3, "reps": "12" }
+      {
+        "id": "gw-t-1",
+        "name": "Treadmill easy warm-up",
+        "sets": 1,
+        "reps": "8–12 min",
+        "rest": "N/A",
+        "targetMuscles": "Blood flow, movement prep",
+        "notes": "Keep cardio minimal before strength—goal is readiness, not fatigue.",
+        "detail": "Walk or very light jog. Finish with dynamic leg swings or bodyweight squats if you like—save energy for heavy compounds.",
+        "alternatives": ["Bike easy 8 min", "Rower slow 6 min", "Jump rope easy 3 min"]
+      },
+      {
+        "id": "gw-t-2",
+        "name": "Back squat (or safety bar)",
+        "sets": 5,
+        "reps": "5–8",
+        "rest": "3–4 min",
+        "targetMuscles": "Quads, glutes, adductors, trunk",
+        "detail": "Walk out tight, brace 360° breath, sit between hips. Depth you own with neutral spine—competition depth not required for hypertrophy if range is consistent week to week. Drive mid-foot.",
+        "alternatives": ["Front squat", "Hack squat heavy", "Leg press if no rack"],
+        "media": [
+          {
+            "type": "youtube",
+            "title": "Back squat form guide",
+            "url": "https://www.youtube.com/results?search_query=barbell+back+squat+form+guide"
+          }
+        ]
+      },
+      {
+        "id": "gw-t-3",
+        "name": "Barbell bench press",
+        "sets": 4,
+        "reps": "6–10",
+        "rest": "2–3 min",
+        "targetMuscles": "Chest, triceps, front delts",
+        "detail": "Leg drive, arch is personal/safe range, bar path slightly curved toward face off chest then up. Pause 1 sec on chest optional for control. Spotter or safety arms for heavy sets.",
+        "alternatives": ["DB bench heavy", "Smith bench (slight disadvantage OK)", "Weighted dip"]
+      },
+      {
+        "id": "gw-t-4",
+        "name": "Barbell row (pendlay or bent-over)",
+        "sets": 4,
+        "reps": "6–10",
+        "rest": "2–3 min",
+        "targetMuscles": "Lats, rhomboids, rear delts, biceps",
+        "detail": "Hinge to ~45–90° torso, pull to lower ribs, squeeze back. Don’t use excessive body English on strict hypertrophy weeks—controlled cheat vs strength phase is a choice.",
+        "alternatives": ["Chest-supported row heavy", "T-bar row", "Seal row on incline bench"]
+      },
+      {
+        "id": "gw-t-5",
+        "name": "Romanian deadlift",
+        "sets": 4,
+        "reps": "8–10",
+        "rest": "2–3 min",
+        "targetMuscles": "Hamstrings, glutes, erectors",
+        "detail": "Heavier than fat-loss variant but same hinge integrity—if low back rounds, reduce load. Add 2.5–5 lb when all sets hit top of rep range with 1 RIR.",
+        "alternatives": ["Trap-bar deadlift", "Good morning (moderate)", "Single-leg RDL accessory later"]
+      },
+      {
+        "id": "gw-t-6",
+        "name": "Overhead press (standing or seated)",
+        "sets": 4,
+        "reps": "6–10",
+        "rest": "2 min",
+        "targetMuscles": "Shoulders, triceps, upper chest",
+        "detail": "Glutes squeezed, ribs down. Bar path vertical or slight back arc for strict press. Full lockout without craning neck forward.",
+        "alternatives": ["DB shoulder press", "Push press (if technique solid)", "Landmine press heavy"]
+      },
+      {
+        "id": "gw-t-7",
+        "name": "Hanging leg raise or cable crunch",
+        "sets": 3,
+        "reps": "10–15",
+        "rest": "60–90s",
+        "targetMuscles": "Abdominals",
+        "detail": "Leg raise: posterior pelvic tilt to initiate—avoid pure hip flexor swing. Cable crunch: curl spine, not just arms moving.",
+        "alternatives": ["Weighted plank", "Ab wheel rollout", "Dragon flag (advanced)"]
+      },
+      {
+        "id": "gw-t-8",
+        "name": "Optional calf / arm accessories",
+        "sets": 3,
+        "reps": "12–15 each",
+        "rest": "60s",
+        "targetMuscles": "Calves, arms (volume)",
+        "detail": "Hypertrophy benefits from weekly volume per muscle—use 2–3 isolation moves if time allows after compounds. Standing calf + hammer curl example pairing.",
+        "alternatives": ["Preacher curl", "Triceps rope", "Seated calf raise"]
+      }
     ],
     "with_cycle": [
-      { "id": "gw-c-1", "name": "Bike warm-up", "sets": 1, "reps": "10 min", "notes": "Low intensity" },
-      { "id": "gw-c-2", "name": "Deadlift", "sets": 5, "reps": "5" },
-      { "id": "gw-c-3", "name": "Incline dumbbell press", "sets": 4, "reps": "8-10" },
-      { "id": "gw-c-4", "name": "Pull-ups/assisted pull-ups", "sets": 4, "reps": "8-10" },
-      { "id": "gw-c-5", "name": "Farmer carry", "sets": 4, "reps": "30 m" }
+      {
+        "id": "gw-c-1",
+        "name": "Bike easy warm-up",
+        "sets": 1,
+        "reps": "8–12 min",
+        "rest": "N/A",
+        "targetMuscles": "Movement prep, legs",
+        "detail": "Low resistance, gradually raise cadence last 2 min. Not breathless before deadlifts.",
+        "alternatives": ["Walk + dynamic mobility", "Light row 6 min"]
+      },
+      {
+        "id": "gw-c-2",
+        "name": "Conventional or trap-bar deadlift",
+        "sets": 5,
+        "reps": "3–6 (strength) or 5–8 (hypertrophy bias)",
+        "rest": "3–5 min",
+        "targetMuscles": "Posterior chain, back, grip",
+        "detail": "Bar over mid-foot, hinge to grip, pull slack out, brace, drive floor away. Hips and chest rise together—no stiff-leg hips shooting first. Trap bar often allows more upright torso if mobility-limited.",
+        "alternatives": ["Sumo deadlift", "Rack pull from pins (partial ROM overload)", "Heavy hip thrust"]
+      },
+      {
+        "id": "gw-c-3",
+        "name": "Incline dumbbell press",
+        "sets": 4,
+        "reps": "8–12",
+        "rest": "2–3 min",
+        "targetMuscles": "Upper chest, front delts, triceps",
+        "detail": "Bench 15–30°. DB path slight arc converging at top without flaring elbows to 90°. Control eccentric 2–3 sec.",
+        "alternatives": ["Smith incline", "Cable low-to-high fly after presses", "Machine incline press"]
+      },
+      {
+        "id": "gw-c-4",
+        "name": "Weighted pull-up or lat pulldown",
+        "sets": 4,
+        "reps": "6–10 (weighted) or 8–12 (pulldown)",
+        "rest": "2–3 min",
+        "targetMuscles": "Lats, biceps, upper back",
+        "detail": "Full hang to start each pull-up if possible; chest to bar or chin over based on shoulder comfort. Pulldown: lean slightly, pull to upper chest.",
+        "alternatives": ["Assisted pull-up slow negative", "Chest-supported row heavy", "Single-arm pulldown"]
+      },
+      {
+        "id": "gw-c-5",
+        "name": "Bulgarian split squat",
+        "sets": 3,
+        "reps": "8–12/leg",
+        "rest": "90s",
+        "targetMuscles": "Quads, glutes, single-leg strength",
+        "detail": "Front foot far enough so knee tracks over ankle. Torso slight forward lean OK for glute bias. DBs at sides or goblet.",
+        "alternatives": ["Walking lunge heavy", "Step-up weighted", "Single-leg press"]
+      },
+      {
+        "id": "gw-c-6",
+        "name": "Farmer carry heavy",
+        "sets": 4,
+        "reps": "25–40m",
+        "rest": "90s",
+        "targetMuscles": "Grip, traps, core, total tension",
+        "detail": "Heavier than maintenance—handles should challenge grip last. Tall walk, short steps.",
+        "alternatives": ["Suitcase deadlift march", "Trap-bar carry", "Shrugs heavy strict"]
+      },
+      {
+        "id": "gw-c-7",
+        "name": "Lateral raise + rear delt superset",
+        "sets": 3,
+        "reps": "12–15 each",
+        "rest": "60s",
+        "targetMuscles": "Side/rear delts for shoulder volume",
+        "detail": "Light to moderate—control, slight lean on laterals, thumbs slightly down finish cue optional. Rear delt fly bent-over or reverse pec deck.",
+        "alternatives": ["Face pull", "Cable Y-raise", "Arnold press light finisher"]
+      },
+      {
+        "id": "gw-c-8",
+        "name": "Leg curl",
+        "sets": 3,
+        "reps": "10–12",
+        "rest": "60s",
+        "targetMuscles": "Hamstrings balance vs squat/deadlift",
+        "detail": "Hypertrophy: controlled eccentrics, full ROM. Pair hamstring volume with hinge patterns for knee health.",
+        "alternatives": ["Nordic curl negatives", "Stability ball curl", "Cable kickback"]
+      }
     ],
     "without_cardio": [
-      { "id": "gw-n-1", "name": "Leg press heavy", "sets": 5, "reps": "8" },
-      { "id": "gw-n-2", "name": "Dumbbell bench press", "sets": 4, "reps": "8-10" },
-      { "id": "gw-n-3", "name": "Chest supported row", "sets": 4, "reps": "10" },
-      { "id": "gw-n-4", "name": "Overhead press", "sets": 4, "reps": "8" },
-      { "id": "gw-n-5", "name": "Cable crunch", "sets": 3, "reps": "15" }
+      {
+        "id": "gw-n-1",
+        "name": "Leg press (heavy, full ROM)",
+        "sets": 5,
+        "reps": "6–10",
+        "rest": "2–3 min",
+        "targetMuscles": "Quads, glutes",
+        "detail": "Feet placement changes bias—mid foot balanced. Depth without butt rounding off seat. No hands on knees pushing—hands on handles beside seat.",
+        "alternatives": ["Hack squat", "Smith squat with safeties", "Belt squat if available"]
+      },
+      {
+        "id": "gw-n-2",
+        "name": "Dumbbell bench press",
+        "sets": 4,
+        "reps": "8–12",
+        "rest": "2 min",
+        "targetMuscles": "Chest, triceps, stabilizers",
+        "detail": "Greater ROM than barbell for many—stretch at bottom without bouncing. Rotate neutral at bottom to slight pronated at top optional.",
+        "alternatives": ["Barbell bench", "Floor press", "Cable fly heavy"]
+      },
+      {
+        "id": "gw-n-3",
+        "name": "Chest-supported row (incline bench + DB)",
+        "sets": 4,
+        "reps": "8–12",
+        "rest": "90s",
+        "targetMuscles": "Upper back, lats, biceps",
+        "detail": "Chest on pad removes lower back limiter—row elbows back, squeeze scapula. Great for adding pulling volume safely.",
+        "alternatives": ["Seal row", "Machine row", "Meadows row"]
+      },
+      {
+        "id": "gw-n-4",
+        "name": "Standing overhead press",
+        "sets": 4,
+        "reps": "6–10",
+        "rest": "2–3 min",
+        "targetMuscles": "Shoulders, triceps, core",
+        "detail": "Squeeze glutes, quads; bar path vertical. Walk out from rack, 2–3 warm-up sets before working weights.",
+        "alternatives": ["Seated DB press", "Z press", "Landmine press heavy"]
+      },
+      {
+        "id": "gw-n-5",
+        "name": "Hip thrust",
+        "sets": 4,
+        "reps": "10–15",
+        "rest": "90s",
+        "targetMuscles": "Glutes, hamstrings",
+        "detail": "Upper back on bench, bar padded on hips. Chin tucked slightly, rib cage down, drive hips up with glutes max squeeze top—no hyperextension through lumbar only.",
+        "alternatives": ["Glute bridge barbell", "Cable pull-through", "Single-leg hip thrust"]
+      },
+      {
+        "id": "gw-n-6",
+        "name": "Cable crunch or weighted plank",
+        "sets": 3,
+        "reps": "12–20",
+        "rest": "60s",
+        "targetMuscles": "Rectus abdominis",
+        "detail": "Progress load over weeks like any lift—add plate on cable stack when top rep range hit.",
+        "alternatives": ["Hanging knee raise with dumbbell between feet", "Decline sit-up weight held"]
+      },
+      {
+        "id": "gw-n-7",
+        "name": "EZ-bar curl + skull crusher superset",
+        "sets": 3,
+        "reps": "10–12 each",
+        "rest": "90s",
+        "targetMuscles": "Biceps, triceps",
+        "detail": "Arm hypertrophy finisher—elbows fixed for extensions, no flaring on curls. Light elbow tendon-friendly tempo.",
+        "alternatives": ["DB hammer curl", "Rope pushdown", "Preacher curl machine"]
+      },
+      {
+        "id": "gw-n-8",
+        "name": "Calf raise heavy",
+        "sets": 4,
+        "reps": "8–12",
+        "rest": "60s",
+        "targetMuscles": "Gastrocnemius / soleus",
+        "detail": "Pause stretch and contraction. Train calves 2×/week if lagging—higher weekly sets help growth (general hypertrophy principle).",
+        "alternatives": ["Single-leg calf", "Leg press calf", "Tibialis raise (toe raises)"]
+      }
     ]
   }
 }
